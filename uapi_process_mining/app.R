@@ -102,7 +102,7 @@ server <- function(input, output) {
     
     data = fromJSON(rawToChar(res$content))
     
-    data$log_ts <-  as.POSIXct(data$log_ts,format="%d/%m/%Y %H:%M:%OS")
+    data$log_ts <-  as.POSIXct(data$log_ts,format="%d/%m/%Y %H:%M:%OS", tz='UTC')
     
     
     data$Row_Activity_ID <- data %>% group_indices(data$request_type_desc)

@@ -23,33 +23,79 @@ r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
 
 
-ui <- dashboardPage(skin = "blue", 
+ui <- dashboardPage(
+    skin = "blue",
+    
+    dashboardHeader(title = "Process Mining"),
+    
+    
+    dashboardSidebar(
+        fluidRow(column(
+            12, div(
+                style = "height:200px",
+                
+                selectInput(
+                    "Agency_ID",
+                    h5(strong(em("Agency"))),
                     
-                    # Application title
-                    dashboardHeader(title = "Process Mining"), 
+                    choices = c("All", unique(as.character(Agencies$name))),
                     
-                    # Sidebar with a slider input for number of bins 
-                    dashboardSidebar(
-                        
-                        fluidRow(column(12, div(style = "height:150px", 
-                                                
-                                                selectInput("Agency_ID", h5(strong(em("Agency"))), 
-                                                            
-                                                            choices = c("All", unique(as.character(Agencies$name))),
-                                                            
-                                                            selected = "All", multiple = FALSE))
-                        )),
-                        
-                        
-                        
-                        fluidRow(column(12, div(strong(em("This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Tech Opt and Bookability teams - Dubai, UAE.")))))
-                        
-                        
-                    ),
+                    selected = "All",
+                    multiple = FALSE
+                )
+            )
+        )),
+        
+        fluidRow(column(
+            12, div(style = "height:100px, padding:1px",
                     
-                    dashboardBody( 
-                        
-                        tags$head(tags$style(HTML('
+                    dateRangeInput("TIME", h5(strong(
+                        em("DATE RANGE")
+                    ))))
+        )),
+        
+        
+        fluidRow(column(
+            12, div(
+                style = "height:150px",
+                
+                sliderInput(
+                    "frequency",
+                    "Decimal:",
+                    min = 0,
+                    max = 1,
+                    value = 0.5,
+                    step = 0.1
+                )
+            )
+        )),
+        
+        fluidRow(column(
+            12,
+            offset = 2,
+            
+            actionButton(
+                inputId = "PLOT",
+                label = "PLOT",
+                width = "40%",
+                height = "40%",
+                
+                style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+            )
+            
+        )),
+        
+        
+        fluidRow(column(12, div(strong(
+            em(
+                "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Tech Opt and Bookability teams - Dubai, UAE."
+            )
+        ))))
+    ),
+    
+    dashboardBody(tags$head(tags$style(
+        HTML(
+            '
                                                 .main-header .logo {
                                                 font-family: "Georgia", Times,
                                                 "Times New Roman",
@@ -57,32 +103,46 @@ ui <- dashboardPage(skin = "blue",
                                                 font-size: 24px;
                                                 font-style: italic;
                                                 }
-                                                '))),
-                        
-                        fluidRow(
-                            
-                            tabBox(height = "1100px", width = "1000px",
-                                   
-                                   tabPanel(title = tagList(icon("project-diagram", class = "fas fa-project-diagram")
-                                                            
-                                                            , "PROCESS SUMMARY"),
-                                            
-                                            box(grVizOutput("Pr_map"), status = "primary", solidHeader = TRUE,
-                                                
-                                                title = "PROCESS MAP", width = 8, height = 612, collapsible = TRUE)
-                                   )
-                            )
-                        )
-                    )
+                                                '
+        )
+    )),
+    
+    fluidRow(
+        tabBox(
+            height = "100%",
+            width = "100%",
+            
+            tabPanel(
+                title = tagList(
+                    icon("project-diagram", class = "fas fa-project-diagram")
+                    
+                    ,
+                    "PROCESS SUMMARY"
+                ),
+                
+                box(
+                    grVizOutput("Pr_map"),
+                    status = "primary",
+                    solidHeader = TRUE,
+                    
+                    title = "PROCESS MAP",
+                    width = "100%",
+                    height = "100%",
+                    collapsible = TRUE
+                )
+            )
+        )
+    ))
 )
 
 
 
 server <- function(input, output) {
-    
-    url <- "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
-    parambody<- list(json="{
-                    \"agency\":\"Easy Trip Planners Hierarchy\",
+    observeEvent(input$PLOT, {
+        url <- "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
+        param1 <- "{\"agency\":\""
+        
+        param2 <-  "\",
                     \"txType\":\"\",
                     \"startDate\":\"2020-06-30 00:00\",
                     \"endDate\":\"2020-07-01 00:00\",
@@ -95,40 +155,43 @@ server <- function(input, output) {
                     \"author\":\"\",
                     \"email\":\"stephanos.kykkotis@travelport.com\",
                     \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"
-                    }")
-    
-    res = POST(url, body =  parambody , encode = "form" )
-    
-    
-    data = fromJSON(rawToChar(res$content))
-    
-    data$log_ts <-  as.POSIXct(data$log_ts,format="%d/%m/%Y %H:%M:%OS", tz='UTC')
-    
-    
-    data$Row_Activity_ID <- data %>% group_indices(data$request_type_desc)
-    
-    output$Pr_map <- renderGrViz(({
+                    }"
         
-        pp <- data %>% #a data.frame with the information in the table above
-            mutate(status = NA) %>%
-            mutate(resource = NA) %>%
-            mutate(lifecycle_id = NA) %>%
-            
-            eventlog(
-                case_id = "traceid",
-                activity_id = "request_type_desc",
-                activity_instance_id = "Row_Activity_ID",
-                lifecycle_id = "lifecycle_id",
-                timestamp = "log_ts",
-                resource_id = "resource",
-                validate = FALSE
-            ) %>%  #filter_activity_frequency(interval = c(300,500)) %>% 
-            process_map()
+        jsonargs <- paste(param1, input$Agency_ID, param2, sep = "")
         
-    }))
-    
-    
+        parambody <- list(json = jsonargs)
+        
+        res = POST(url, body =  parambody , encode = "form" , verbose())
+        
+        
+        data = fromJSON(rawToChar(res$content))
+        
+        data$log_ts <-
+            as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        
+        
+        data$Row_Activity_ID <-
+            data %>% group_indices(data$request_type_desc)
+        
+        output$Pr_map <- renderGrViz(({
+            pp <- data %>% #a data.frame with the information in the table above
+                mutate(status = NA) %>%
+                mutate(resource = NA) %>%
+                mutate(lifecycle_id = NA) %>%
+                
+                eventlog(
+                    case_id = "traceid",
+                    activity_id = "request_type_desc",
+                    activity_instance_id = "Row_Activity_ID",
+                    lifecycle_id = "lifecycle_id",
+                    timestamp = "log_ts",
+                    resource_id = "resource",
+                    validate = FALSE
+                ) %>%  filter_activity_frequency(percentage = input$frequency, reverse = T) %>%
+                process_map()
+        }))
+    })
 }
 
-# Run the application 
+# Run the application
 shinyApp(ui = ui, server = server)

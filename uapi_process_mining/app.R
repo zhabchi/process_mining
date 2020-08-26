@@ -21,7 +21,7 @@ library(shinydashboard)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
-
+AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
 
 ui <- dashboardPage(
     skin = "blue",
@@ -32,22 +32,46 @@ ui <- dashboardPage(
     dashboardSidebar(
         fluidRow(column(
             12, div(
-                style = "height:150px",
+                style = "height:100px",
                 
                 selectInput(
                     "Agency_ID",
                     h5(strong(em("Agency"))),
                     
-                    choices = c("All", unique(as.character(Agencies$name))),
-                    
-                    selected = "All",
+                    choices = c(unique(as.character(Agencies$name))),
+                   
                     multiple = FALSE
                 )
             )
         )),
         
        
+        fluidRow(column(
+            12, div(
+                
+                checkboxInput(
+                    "includeLFS",
+                    h5(strong(("Include Shop Requests"))),
+                    
+                    value = FALSE,
+                    width = "100%"
+                )
+            )
+        )),
         
+        fluidRow(column(
+            12, div(
+                style = "height:150px",
+                
+                selectInput(
+                    "PCCs",
+                    h5(strong(em("PCCs"))),
+                    choices = c(''),
+                    selected = "",
+                    multiple = TRUE
+                )
+            )
+        )),
         
         fluidRow(column(
             12, div(
@@ -87,7 +111,7 @@ ui <- dashboardPage(
             
         )),
         
-        fluidRow(column(12, div(style = "height:200px")
+        fluidRow(column(12, div(style = "height:50px")
                         
         )),
         
@@ -99,16 +123,14 @@ ui <- dashboardPage(
     ),
     
     dashboardBody(tags$head(tags$style(
-        HTML(
+        HTML('.main-header .logo {
+            font-family: "Georgia", Times,
+            "Times New Roman",
+            font-weight: bold;
+            font-size: 24px;
+            font-style: italic;
+            }
             '
-                                                .main-header .logo {
-                                                font-family: "Georgia", Times,
-                                                "Times New Roman",
-                                                font-weight: bold;
-                                                font-size: 24px;
-                                                font-style: italic;
-                                                }
-                                                '
         )
     )),
     
@@ -142,57 +164,77 @@ ui <- dashboardPage(
 
 
 
-server <- function(input, output) {
+server <- function(input, output, session) {
     observeEvent(input$PLOT, {
+        
+        fromDate <- input$TIME[1]
+        toDate <- input$TIME[2]
+        
+        
         url <- "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
         param1 <- "{\"agency\":\""
-        
-        param2 <-  "\",
-                    \"txType\":\"\",
-                    \"startDate\":\"2020-06-30 00:00\",
-                    \"endDate\":\"2020-07-01 00:00\",
-                    \"successVal\":\"All\",
-                    \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,schema_version,agency_name,target_branch,pseudo_city_code,ur_locator_code,origin_application_code,provider_code_list,supplier_code_list,total_number_of_travellers,total_segments_booked,total_responsetime_ms,app_server_host,request_bytes,response_bytes,host_locator_code,optional_service_qty,travel_segments,travel_dates,supplier_locator_code,flight_number,class_of_service,availability_source,number_in_party,air_segments_booked,air_segments_cancelled,error_level_code,error_type_code,error_text,soap_fault_text,traceid,aux1,aux2,aux3,uapi_responsetime_ms,session_key,db2_locktime,db2_number_of_locks,ptc_list,\",
-                    \"rowLimit\":\"25000\",
+        param2 <-  "\", \"txType\":\"\", \"startDate\":\""
+        param3 <-   " 00:00\", \"endDate\":\""
+        param4 <-   " 00:00\", \"successVal\":\"All\",
+                    \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
+                    \"rowLimit\":\"5000\",
                     \"outputFormat\":\"json\",
                     \"orderBy\":\"\",
                     \"ascendDescend\":\"ASC\",
-                    \"author\":\"\",
-                    \"email\":\"stephanos.kykkotis@travelport.com\",
+                    \"author\":\"\","
+        
+        if(input$includeLFS == FALSE)
+             param5 <-  "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch\","
+        
+        
+        param6 <-   "\"email\":\"stephanos.kykkotis@travelport.com\",
                     \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"
                     }"
         
-        jsonargs <- paste(param1, input$Agency_ID, param2, sep = "")
-        
+        jsonargs <- paste(param1, input$Agency_ID, param2, fromDate ,param3, toDate, param4, param5, param6, sep = "")
+        #print(jsonargs)
         parambody <- list(json = jsonargs)
-        
-        res = POST(url, body =  parambody , encode = "form" , verbose())
-        
-        
+
+        res = POST(url, body =  parambody , encode = "form" )
+
+
         data = fromJSON(rawToChar(res$content))
-        
+        #PCCs <- unique(data$pseudo_city_code)
+        #updateSelectInput(session, "PCCs",
+        #                  label = "Filter by PCC",
+        #                  choices = PCCs
+        #)
+
         data$log_ts <-
             as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-        
-        
+
+
         data$Row_Activity_ID <-
             data %>% group_indices(data$request_type_desc)
+
+         #if(input$PCCs == "All")
+         #    selectedPCCs <- PCCs
+         #else
+         #    selectedPCCs <- input$PCCs
+
+        #print(selectedPCCs)
         
         output$Pr_map <- renderGrViz(({
             pp <- data %>% #a data.frame with the information in the table above
                 mutate(status = NA) %>%
-                mutate(resource = NA) %>%
                 mutate(lifecycle_id = NA) %>%
-                
+
                 eventlog(
                     case_id = "traceid",
                     activity_id = "request_type_desc",
                     activity_instance_id = "Row_Activity_ID",
                     lifecycle_id = "lifecycle_id",
                     timestamp = "log_ts",
-                    resource_id = "resource",
+                    resource_id = "pseudo_city_code",
                     validate = FALSE
-                ) %>%  filter_activity_frequency(percentage = input$frequency, reverse = T) %>%
+                ) %>%
+                #filter_resource(input$PCCs) %>%
+                filter_activity_frequency(percentage = input$frequency) %>%
                 process_map()
         }))
     })

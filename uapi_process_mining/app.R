@@ -32,7 +32,7 @@ ui <- dashboardPage(
     dashboardSidebar(
         fluidRow(column(
             12, div(
-                style = "height:200px",
+                style = "height:150px",
                 
                 selectInput(
                     "Agency_ID",
@@ -46,13 +46,7 @@ ui <- dashboardPage(
             )
         )),
         
-        fluidRow(column(
-            12, div(style = "height:100px, padding:1px",
-                    
-                    dateRangeInput("TIME", h5(strong(
-                        em("DATE RANGE")
-                    ))))
-        )),
+       
         
         
         fluidRow(column(
@@ -61,13 +55,21 @@ ui <- dashboardPage(
                 
                 sliderInput(
                     "frequency",
-                    "Decimal:",
+                    "Frequency:",
                     min = 0,
                     max = 1,
                     value = 0.5,
                     step = 0.1
                 )
             )
+        )),
+        
+        fluidRow(column(
+            12, div(style = "height:100px, padding:1px",
+                    
+                    dateRangeInput("TIME", h5(strong(
+                        em("DATE RANGE")
+                    ))))
         )),
         
         fluidRow(column(
@@ -85,10 +87,13 @@ ui <- dashboardPage(
             
         )),
         
+        fluidRow(column(12, div(style = "height:200px")
+                        
+        )),
         
         fluidRow(column(12, div(strong(
             em(
-                "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Tech Opt and Bookability teams - Dubai, UAE."
+                "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Techonlgy Optimization and Bookability teams - Dubai, UAE."
             )
         ))))
     ),

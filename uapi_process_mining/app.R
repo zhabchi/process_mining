@@ -26,7 +26,7 @@ Agencies <-  fromJSON(fromJSON(content(r, "text")))
 ui <- dashboardPage(
     skin = "blue",
     
-    dashboardHeader(title = "Process Mining"),
+    dashboardHeader(title = "uAPI Process Mining"),
     
     
     dashboardSidebar(
@@ -63,12 +63,9 @@ ui <- dashboardPage(
             12, div(
                 style = "height:150px",
                 
-                selectInput(
-                    "PCCs",
-                    h5(strong(em("PCCs"))),
-                    choices = c(''),
-                    selected = "",
-                    multiple = TRUE
+                textInput(
+                    "PCC",
+                    h5(strong(em("PCC"))),
                 )
             )
         )),
@@ -80,10 +77,10 @@ ui <- dashboardPage(
                 sliderInput(
                     "frequency",
                     "Frequency:",
-                    min = 0,
+                    min = 0.1,
                     max = 1,
                     value = 0.5,
-                    step = 0.1
+                    step = 0.05
                 )
             )
         )),
@@ -148,7 +145,7 @@ ui <- dashboardPage(
                 ),
                 
                 box(
-                    grVizOutput("Pr_map"),
+                    grVizOutput("Pr_map", height = "100%"),
                     status = "primary",
                     solidHeader = TRUE,
                     
@@ -183,28 +180,47 @@ server <- function(input, output, session) {
                     \"ascendDescend\":\"ASC\",
                     \"author\":\"\","
         
-        if(input$includeLFS == FALSE)
-             param5 <-  "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch\","
+       
         
+        if(input$includeLFS == FALSE)
+             param5 <-  "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
+        
+        
+        if(input$PCC != "")
+        {   if(exists("param5"))
+            {
+                param5 <- paste(param5 , ", pseudo_city_code equals ", input$PCC, "\"," ,sep="")
+            }   
+            else 
+                param5 <-  paste( "\"restrictions\": \"pseudo_city_code equals ", input$PCC, "\",", sep ="")
+        }
+        else if(exists("param5"))
+            param5 <- paste(param5 ,  "\"," , sep="")
+        else 
+            param5 <- ""
         
         param6 <-   "\"email\":\"stephanos.kykkotis@travelport.com\",
-                    \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"
-                    }"
+                    \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}"
         
         jsonargs <- paste(param1, input$Agency_ID, param2, fromDate ,param3, toDate, param4, param5, param6, sep = "")
         #print(jsonargs)
         parambody <- list(json = jsonargs)
+        
+        ##
+        #res = POST(url, body =  parambody , encode = "form" )
 
-        res = POST(url, body =  parambody , encode = "form" )
-
-
-        data = fromJSON(rawToChar(res$content))
+        ##
+        #data = fromJSON(rawToChar(res$content))
+        
         #PCCs <- unique(data$pseudo_city_code)
         #updateSelectInput(session, "PCCs",
         #                  label = "Filter by PCC",
         #                  choices = PCCs
         #)
 
+        
+        data <- IBIBO_WEB_Hierarchy2020_06_01_00_00 <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+        
         data$log_ts <-
             as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
 
@@ -218,7 +234,7 @@ server <- function(input, output, session) {
          #    selectedPCCs <- input$PCCs
 
         #print(selectedPCCs)
-        
+
         output$Pr_map <- renderGrViz(({
             pp <- data %>% #a data.frame with the information in the table above
                 mutate(status = NA) %>%

@@ -26,93 +26,89 @@ Agencies <-  fromJSON(fromJSON(content(r, "text")))
 ui <- dashboardPage(
     skin = "blue",
     
-    dashboardHeader(title = "uAPI Process Mining"),
+    dashboardHeader(title = "uAPI Workflow Analysis",
+                    titleWidth = 350),
     
     
     dashboardSidebar(
-        fluidRow(column(
-            12, div(
-                style = "height:100px",
-                
-                selectInput(
-                    "Agency_ID",
-                    h5(strong(em("Agency"))),
-                    
-                    choices = c(unique(as.character(Agencies$name))),
-                   
-                    multiple = FALSE
-                )
+        width = 350,
+        fluidRow(column(12, div(
+            selectInput(
+                "Agency_ID",
+                label = "Agency",
+                choices = c(unique(as.character(Agencies$name))),
+                width = '100%',
+                multiple = FALSE
             )
-        )),
+        ))),
         
-       
-        fluidRow(column(
-            12, div(
-                
-                checkboxInput(
-                    "includeLFS",
-                    h5(strong(("Include Shop Requests"))),
-                    
-                    value = FALSE,
-                    width = "100%"
-                )
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        fluidRow(column(12, div(
+            textInput("PCC",
+                      label = "PCC",
+                      width = '100%',)
+        ))),
+        
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        
+        fluidRow(column(12, div(
+            checkboxInput(
+                "includeLFS",
+                label = "Include Shop Requests",
+                value = FALSE,
+                width = "100%"
             )
-        )),
+        ))),
         
-        fluidRow(column(
-            12, div(
-                style = "height:150px",
-                
-                textInput(
-                    "PCC",
-                    h5(strong(em("PCC"))),
-                )
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        
+        fluidRow(column(12, div(
+            dateRangeInput(
+                inputId = "TIME",
+                label = 'Date',
+                width = "100%"
             )
-        )),
+        ))),
         
-        fluidRow(column(
-            12, div(
-                style = "height:150px",
-                
-                sliderInput(
-                    "frequency",
-                    "Frequency:",
-                    min = 0.1,
-                    max = 1,
-                    value = 0.5,
-                    step = 0.05
-                )
-            )
-        )),
         
-        fluidRow(column(
-            12, div(style = "height:100px, padding:1px",
-                    
-                    dateRangeInput("TIME", h5(strong(
-                        em("DATE RANGE")
-                    ))))
-        )),
+        fluidRow(column(12, div(style = "height:20px"))),
+        
         
         fluidRow(column(
             12,
-            offset = 2,
-            
+            align = "center",
             actionButton(
                 inputId = "PLOT",
                 label = "PLOT",
                 width = "40%",
                 height = "40%",
-                
                 style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
             )
             
         )),
         
-        fluidRow(column(12, div(style = "height:50px")
-                        
-        )),
+        fluidRow(column(12, div(style = "height:50px"))),
         
-        fluidRow(column(12, div(strong(
+        
+        fluidRow(column(12, div(
+            sliderInput(
+                "frequency",
+                "Frequency",
+                min = 0.1,
+                max = 1,
+                value = 0.1,
+                step = 0.05,
+                width = "100%"
+                
+            )
+        ))),
+        
+        fluidRow(column(12, div(style = "height:100px"))),
+        
+        fluidRow(column(12, div(style = "padding:15px", strong(
             em(
                 "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Techonlgy Optimization and Bookability teams - Dubai, UAE."
             )
@@ -120,7 +116,8 @@ ui <- dashboardPage(
     ),
     
     dashboardBody(tags$head(tags$style(
-        HTML('.main-header .logo {
+        HTML(
+            '.main-header .logo {
             font-family: "Georgia", Times,
             "Times New Roman",
             font-weight: bold;
@@ -138,21 +135,19 @@ ui <- dashboardPage(
             
             tabPanel(
                 title = tagList(
-                    icon("project-diagram", class = "fas fa-project-diagram")
-                    
-                    ,
-                    "PROCESS SUMMARY"
+                    icon("project-diagram", class = "fas fa-project-diagram"),
+                    "Workflow Visualization"
                 ),
                 
                 box(
-                    grVizOutput("Pr_map", height = "100%"),
-                    status = "primary",
+                    grVizOutput("Pr_map", height = "800px"),
+                    #status = "primary",
                     solidHeader = TRUE,
                     
-                    title = "PROCESS MAP",
+                    #title = "Workflow",
                     width = "100%",
                     height = "100%",
-                    collapsible = TRUE
+                    #collapsible = TRUE
                 )
             )
         )
@@ -163,12 +158,12 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
     observeEvent(input$PLOT, {
-        
         fromDate <- input$TIME[1]
         toDate <- input$TIME[2]
         
         
-        url <- "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
+        url <-
+            "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
         param1 <- "{\"agency\":\""
         param2 <-  "\", \"txType\":\"\", \"startDate\":\""
         param3 <-   " 00:00\", \"endDate\":\""
@@ -180,72 +175,103 @@ server <- function(input, output, session) {
                     \"ascendDescend\":\"ASC\",
                     \"author\":\"\","
         
-       
-        
-        if(input$includeLFS == FALSE)
-             param5 <-  "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
         
         
-        if(input$PCC != "")
-        {   if(exists("param5"))
+        if (input$includeLFS == FALSE)
+            param5 <-
+            "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
+        
+        
+        if (input$PCC != "")
+        {
+            if (exists("param5"))
             {
-                param5 <- paste(param5 , ", pseudo_city_code equals ", input$PCC, "\"," ,sep="")
-            }   
-            else 
-                param5 <-  paste( "\"restrictions\": \"pseudo_city_code equals ", input$PCC, "\",", sep ="")
+                param5 <-
+                    paste(param5 ,
+                          ", pseudo_city_code equals ",
+                          input$PCC,
+                          "\"," ,
+                          sep = "")
+            }
+            else
+                param5 <-
+                    paste("\"restrictions\": \"pseudo_city_code equals ",
+                          input$PCC,
+                          "\",",
+                          sep = "")
         }
-        else if(exists("param5"))
-            param5 <- paste(param5 ,  "\"," , sep="")
-        else 
+        else if (exists("param5"))
+            param5 <- paste(param5 ,  "\"," , sep = "")
+        else
             param5 <- ""
         
-        param6 <-   "\"email\":\"stephanos.kykkotis@travelport.com\",
+        param6 <-
+            "\"email\":\"stephanos.kykkotis@travelport.com\",
                     \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}"
         
-        jsonargs <- paste(param1, input$Agency_ID, param2, fromDate ,param3, toDate, param4, param5, param6, sep = "")
+        jsonargs <-
+            paste(
+                param1,
+                input$Agency_ID,
+                param2,
+                fromDate ,
+                param3,
+                toDate,
+                param4,
+                param5,
+                param6,
+                sep = ""
+            )
         #print(jsonargs)
         parambody <- list(json = jsonargs)
         
         ##
-        res = POST(url, body =  parambody , encode = "form" )
-
+        ##res = POST(url, body =  parambody , encode = "form" )
+        
         ##
-        data = fromJSON(rawToChar(res$content))
+        ##data = fromJSON(rawToChar(res$content))
         
         # PCCs <- unique(data$pseudo_city_code)
         # updateSelectInput(session, "PCCs",
         #                  label = "Filter by PCC",
         #                  choices = PCCs
         # )
-        #data <- IBIBO_WEB_Hierarchy2020_06_01_00_00 <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+        data <-
+            IBIBO_WEB_Hierarchy2020_06_01_00_00 <-
+            read_csv("Workflow from Website.csv")
         
-         data$log_ts <-
-             as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-        
-        
-         data$Row_Activity_ID <-
-             data %>% group_indices(data$request_type_desc)
+        data$log_ts <-
+            as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
         
         
-
-         output$Pr_map <- renderGrViz(({
-             pp <- data %>% #a data.frame with the information in the table above
-                 mutate(status = NA) %>%
-                 mutate(lifecycle_id = NA) %>%
+        #data$Row_Activity_ID <-
+        #data %>% group_indices(data$request_type_desc)
         
-                 eventlog(
-                     case_id = "traceid",
-                     activity_id = "request_type_desc",
-                     activity_instance_id = "Row_Activity_ID",
-                     lifecycle_id = "lifecycle_id",
-                     timestamp = "log_ts",
-                     resource_id = "pseudo_city_code",
-                     validate = FALSE
-                 ) %>%
-
-                 filter_activity_frequency(percentage = input$frequency) %>%
-                 process_map()
-         }))
+        
+        
+        output$Pr_map <- renderGrViz(({
+            pp <- data %>% #a data.frame with the information in the table above
+                mutate(status = NA) %>%
+                mutate(lifecycle_id = NA) %>%
+                mutate(activity_instance = 1:nrow(.)) %>%
+                
+                eventlog(
+                    case_id = "traceid",
+                    activity_id = "request_type_desc",
+                    activity_instance_id = "activity_instance",
+                    lifecycle_id = "lifecycle_id",
+                    timestamp = "log_ts",
+                    resource_id = "pseudo_city_code",
+                    validate = FALSE
+                ) %>%
+                
+                filter_activity_frequency(percentage = input$frequency) %>%
+                process_map(
+                    type = frequency("absolute"),
+                    sec_edges = performance(mean, "mins"),
+                    rankdir = "TB"
+                )
+        }))
     })
 }
 

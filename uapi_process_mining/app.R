@@ -207,52 +207,45 @@ server <- function(input, output, session) {
         parambody <- list(json = jsonargs)
         
         ##
-        #res = POST(url, body =  parambody , encode = "form" )
+        res = POST(url, body =  parambody , encode = "form" )
 
         ##
-        #data = fromJSON(rawToChar(res$content))
+        data = fromJSON(rawToChar(res$content))
         
-        #PCCs <- unique(data$pseudo_city_code)
-        #updateSelectInput(session, "PCCs",
+        # PCCs <- unique(data$pseudo_city_code)
+        # updateSelectInput(session, "PCCs",
         #                  label = "Filter by PCC",
         #                  choices = PCCs
-        #)
-
+        # )
+        #data <- IBIBO_WEB_Hierarchy2020_06_01_00_00 <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
         
-        data <- IBIBO_WEB_Hierarchy2020_06_01_00_00 <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+         data$log_ts <-
+             as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
         
-        data$log_ts <-
-            as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        
+         data$Row_Activity_ID <-
+             data %>% group_indices(data$request_type_desc)
+        
+        
 
+         output$Pr_map <- renderGrViz(({
+             pp <- data %>% #a data.frame with the information in the table above
+                 mutate(status = NA) %>%
+                 mutate(lifecycle_id = NA) %>%
+        
+                 eventlog(
+                     case_id = "traceid",
+                     activity_id = "request_type_desc",
+                     activity_instance_id = "Row_Activity_ID",
+                     lifecycle_id = "lifecycle_id",
+                     timestamp = "log_ts",
+                     resource_id = "pseudo_city_code",
+                     validate = FALSE
+                 ) %>%
 
-        data$Row_Activity_ID <-
-            data %>% group_indices(data$request_type_desc)
-
-         #if(input$PCCs == "All")
-         #    selectedPCCs <- PCCs
-         #else
-         #    selectedPCCs <- input$PCCs
-
-        #print(selectedPCCs)
-
-        output$Pr_map <- renderGrViz(({
-            pp <- data %>% #a data.frame with the information in the table above
-                mutate(status = NA) %>%
-                mutate(lifecycle_id = NA) %>%
-
-                eventlog(
-                    case_id = "traceid",
-                    activity_id = "request_type_desc",
-                    activity_instance_id = "Row_Activity_ID",
-                    lifecycle_id = "lifecycle_id",
-                    timestamp = "log_ts",
-                    resource_id = "pseudo_city_code",
-                    validate = FALSE
-                ) %>%
-                #filter_resource(input$PCCs) %>%
-                filter_activity_frequency(percentage = input$frequency) %>%
-                process_map()
-        }))
+                 filter_activity_frequency(percentage = input$frequency) %>%
+                 process_map()
+         }))
     })
 }
 

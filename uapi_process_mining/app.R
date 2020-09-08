@@ -19,7 +19,8 @@ library(httr)
 library(jsonlite)
 library(shinydashboard)
 library(shinyTime)
-
+library(DiagrammeRsvg)
+library(rsvg)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
@@ -269,6 +270,7 @@ server <- function(input, output, session) {
         #print(jsonargs)
         parambody <- list(json = jsonargs)
         
+       
         ##
         ##res = POST(url, body =  parambody , encode = "form" )
         
@@ -296,7 +298,7 @@ server <- function(input, output, session) {
         #                  choices = traceIds
         #)
         
-      
+       
         
         ## remove empty trace id and all unwanted trace ids
         data <- data %>% filter(!(traceid %in% c("", " ")))
@@ -347,7 +349,7 @@ server <- function(input, output, session) {
         output$downloadProcessMap <- downloadHandler(
 
             filename = function() {
-                paste(input$Agency_Id ,Sys.Date(), ".pdf", sep="")
+                paste(input$Agency_ID ,Sys.Date(), ".svg", sep="")
             },
             content = function(file) {
                 
@@ -371,10 +373,10 @@ server <- function(input, output, session) {
                         type = frequency("absolute"),
                         sec_edges = performance(mean, "mins"),
                         rankdir = "TB",
-                        Render = TRUE
+                        render = FALSE
                     )
                 
-                export_graph(graphExport, file_name = file , file_type = "pdf")
+                export_graph(graphExport, file_name = file , file_type = "SVG")
                 
             }
         )

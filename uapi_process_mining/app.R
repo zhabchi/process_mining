@@ -30,6 +30,12 @@ ui <- dashboardPage(
     skin = "blue",
     
     dashboardHeader(title = "uAPI Workflow Analysis",
+                    dropdownMenu(type = "task",
+                                 messageItem(
+                                     from = "Download",
+                                     message = "Reports",
+                                     icon = icon("gear")
+                                 )),
                     titleWidth = 350),
     
     
@@ -142,9 +148,19 @@ ui <- dashboardPage(
         
         fluidRow(column(12, div(style = "height:100px"))),
         
-        fluidRow(column(12, div(
-            downloadButton("downloadProcessMap", label = "Download")
-        ))),
+        
+        fluidRow(column(
+            12,
+            align = "center",
+            downloadButton(
+                outputId = "downloadProcessMap",
+                label = "Download Map",
+                width = "40%",
+                height = "40%",
+                style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+            )
+            
+        )),
         
         
         fluidRow(column(12, div(style = "padding:15px", strong(

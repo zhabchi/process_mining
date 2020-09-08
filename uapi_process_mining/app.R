@@ -18,6 +18,8 @@ library(DiagrammeR)
 library(httr)
 library(jsonlite)
 library(shinydashboard)
+library(shinyTime)
+
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
@@ -47,7 +49,7 @@ ui <- dashboardPage(
         fluidRow(column(12, div(
             textInput("PCC",
                       label = "PCC",
-                      width = '100%',)
+                      width = '100%', )
         ))),
         
         fluidRow(column(12, div(style = "height:10px"))),
@@ -66,13 +68,33 @@ ui <- dashboardPage(
         
         
         fluidRow(column(12, div(
-            dateRangeInput(
-                inputId = "TIME",
+            dateInput(
+                inputId = "Date",
                 label = 'Date',
                 width = "100%"
             )
         ))),
         
+        fluidRow(column(12, div(
+            column(
+                6,
+                timeInput(
+                    "FromTime",
+                    "From Time",
+                    value = strptime("00:00", "%R"),
+                    seconds = FALSE
+                )
+            ),
+            column(
+                6,
+                timeInput(
+                    "ToTime",
+                    "To Time",
+                    value =  strptime("23:59", "%R"),
+                    seconds = FALSE
+                )
+            ),
+        ))),
         
         fluidRow(column(12, div(style = "height:20px"))),
         
@@ -106,7 +128,23 @@ ui <- dashboardPage(
             )
         ))),
         
+        
+        fluidRow(column(12, div(
+            selectInput(
+                "ExclTraceIDs",
+                label = "Excluded Trace IDs",
+                choices = NULL,
+                width = '100%',
+                multiple = TRUE
+            )
+        ))),
+        
         fluidRow(column(12, div(style = "height:100px"))),
+        
+        fluidRow(column(12, div(
+            downloadButton("downloadProcessMap", label = "Download")
+        ))),
+        
         
         fluidRow(column(12, div(style = "padding:15px", strong(
             em(
@@ -158,8 +196,14 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
     observeEvent(input$PLOT, {
-        fromDate <- input$TIME[1]
-        toDate <- input$TIME[2]
+        fromDate <-
+            paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
+        toDate <-
+            paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")
+        
+        
+        msgId <-
+            showNotification("Retreiving data from HIVE server." ,  type = "message")
         
         
         url <-
@@ -231,11 +275,8 @@ server <- function(input, output, session) {
         ##
         ##data = fromJSON(rawToChar(res$content))
         
-        # PCCs <- unique(data$pseudo_city_code)
-        # updateSelectInput(session, "PCCs",
-        #                  label = "Filter by PCC",
-        #                  choices = PCCs
-        # )
+       
+        
         data <-
             IBIBO_WEB_Hierarchy2020_06_01_00_00 <-
             read_csv("Workflow from Website.csv")
@@ -244,34 +285,100 @@ server <- function(input, output, session) {
             as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
         
         
-        #data$Row_Activity_ID <-
-        #data %>% group_indices(data$request_type_desc)
+        # PCCs <- unique(data$pseudo_city_code)
+        # updateSelectInput(session, "PCCs",
+        #                  label = "Filter by PCC",
+        #                  choices = PCCs
+        # )
         
+        #traceIds <- unique(data$traceid)
+        #updateSelectInput(session, "exclTraceIDs",
+        #                  choices = traceIds
+        #)
         
+      
         
-        output$Pr_map <- renderGrViz(({
-            pp <- data %>% #a data.frame with the information in the table above
-                mutate(status = NA) %>%
-                mutate(lifecycle_id = NA) %>%
-                mutate(activity_instance = 1:nrow(.)) %>%
+        ## remove empty trace id and all unwanted trace ids
+        data <- data %>% filter(!(traceid %in% c("", " ")))
+        data <- data %>% filter(!(traceid  %in% input$exclTraceIDs))
+        
+        removeNotification(msgId)
+        msgId <-
+            showNotification("Generating Plot." ,  type = "message")
+        
+        if (nrow(data) == 0) {
+            removeNotification(msgId)
+            msgId <-
+                showNotification("No data in Hive for the selected parameters." ,  type = "warning")
+        }
+        
+        else
+        {
+           
+            output$Pr_map <- renderGrViz({ 
                 
-                eventlog(
-                    case_id = "traceid",
-                    activity_id = "request_type_desc",
-                    activity_instance_id = "activity_instance",
-                    lifecycle_id = "lifecycle_id",
-                    timestamp = "log_ts",
-                    resource_id = "pseudo_city_code",
-                    validate = FALSE
-                ) %>%
+                pp <- data %>% #a data.frame with the information in the table above
+                    mutate(status = NA) %>%
+                    mutate(lifecycle_id = NA) %>%
+                    mutate(activity_instance = 1:nrow(.)) %>%
+                    
+                    eventlog(
+                        case_id = "traceid",
+                        activity_id = "request_type_desc",
+                        activity_instance_id = "activity_instance",
+                        lifecycle_id = "lifecycle_id",
+                        timestamp = "log_ts",
+                        resource_id = "pseudo_city_code",
+                        validate = FALSE
+                    ) %>%
+                    
+                    filter_activity_frequency(percentage = input$frequency) %>%
+                    process_map(
+                        type = frequency("absolute"),
+                        sec_edges = performance(mean, "mins"),
+                        rankdir = "TB"
+                    )
                 
-                filter_activity_frequency(percentage = input$frequency) %>%
-                process_map(
-                    type = frequency("absolute"),
-                    sec_edges = performance(mean, "mins"),
-                    rankdir = "TB"
-                )
-        }))
+                })
+            
+            removeNotification(msgId)
+        }
+        
+        output$downloadProcessMap <- downloadHandler(
+
+            filename = function() {
+                paste(input$Agency_Id ,Sys.Date(), ".pdf", sep="")
+            },
+            content = function(file) {
+                
+                graphExport <- data %>% #a data.frame with the information in the table above
+                    mutate(status = NA) %>%
+                    mutate(lifecycle_id = NA) %>%
+                    mutate(activity_instance = 1:nrow(.)) %>%
+                    
+                    eventlog(
+                        case_id = "traceid",
+                        activity_id = "request_type_desc",
+                        activity_instance_id = "activity_instance",
+                        lifecycle_id = "lifecycle_id",
+                        timestamp = "log_ts",
+                        resource_id = "pseudo_city_code",
+                        validate = FALSE
+                    ) %>%
+                    
+                    filter_activity_frequency(percentage = input$frequency) %>%
+                    process_map(
+                        type = frequency("absolute"),
+                        sec_edges = performance(mean, "mins"),
+                        rankdir = "TB",
+                        Render = TRUE
+                    )
+                
+                export_graph(graphExport, file_name = file , file_type = "pdf")
+                
+            }
+        )
+        
     })
 }
 

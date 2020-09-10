@@ -30,12 +30,6 @@ ui <- dashboardPage(
     skin = "blue",
     
     dashboardHeader(title = "uAPI Workflow Analysis",
-                    dropdownMenu(type = "task",
-                                 messageItem(
-                                     from = "Download",
-                                     message = "Reports",
-                                     icon = icon("gear")
-                                 )),
                     titleWidth = 350),
     
     
@@ -146,9 +140,7 @@ ui <- dashboardPage(
             )
         ))),
         
-        fluidRow(column(12, div(style = "height:100px"))),
-        
-        
+       
         fluidRow(column(
             12,
             align = "center",
@@ -212,6 +204,9 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
+    
+   
+    
     observeEvent(input$PLOT, {
         fromDate <-
             paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
@@ -286,21 +281,21 @@ server <- function(input, output, session) {
         #print(jsonargs)
         parambody <- list(json = jsonargs)
         
-       
+        
         ##
         ##res = POST(url, body =  parambody , encode = "form" )
         
         ##
-        ##data = fromJSON(rawToChar(res$content))
+        ##hivedata = fromJSON(rawToChar(res$content))
         
-       
         
-        data <-
+        
+        hivedata <-
             IBIBO_WEB_Hierarchy2020_06_01_00_00 <-
             read_csv("Workflow from Website.csv")
         
-        data$log_ts <-
-            as.POSIXct(data$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        hivedata$log_ts <-
+            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
         
         
         # PCCs <- unique(data$pseudo_city_code)
@@ -309,33 +304,42 @@ server <- function(input, output, session) {
         #                  choices = PCCs
         # )
         
-        #traceIds <- unique(data$traceid)
-        #updateSelectInput(session, "exclTraceIDs",
-        #                  choices = traceIds
-        #)
         
-       
+        tempSlcted <- input$ExclTraceIDs
+        traceIds <- unique(hivedata$traceid)
+        updateSelectInput(session, "ExclTraceIDs",
+                          choices = traceIds,
+                          selected = tempSlcted
+                          )
         
-        ## remove empty trace id and all unwanted trace ids
-        data <- data %>% filter(!(traceid %in% c("", " ")))
-        data <- data %>% filter(!(traceid  %in% input$exclTraceIDs))
+        
         
         removeNotification(msgId)
-        msgId <-
-            showNotification("Generating Plot." ,  type = "message")
         
-        if (nrow(data) == 0) {
-            removeNotification(msgId)
+        if (nrow(hivedata) == 0) {
             msgId <-
                 showNotification("No data in Hive for the selected parameters." ,  type = "warning")
         }
         
         else
         {
+            ## remove empty trace id and all unwanted trace ids
+          
+            
+            hivedata <-
+                hivedata %>% filter(!(traceid %in% c("", " ")))
+            
            
-            output$Pr_map <- renderGrViz({ 
-                
-                pp <- data %>% #a data.frame with the information in the table above
+            hivedata <-   hivedata %>% filter(!(traceid  %in% input$ExclTraceIDs))
+            
+            
+            msgId <-
+                showNotification("Generating Plot." ,  type = "message")
+            
+            output$Pr_map <- renderGrViz({
+               
+                pp <-
+                    hivedata %>% #a data.frame with the information in the table above
                     mutate(status = NA) %>%
                     mutate(lifecycle_id = NA) %>%
                     mutate(activity_instance = 1:nrow(.)) %>%
@@ -357,47 +361,48 @@ server <- function(input, output, session) {
                         rankdir = "TB"
                     )
                 
-                })
+            })
             
             removeNotification(msgId)
         }
         
-        output$downloadProcessMap <- downloadHandler(
-
-            filename = function() {
-                paste(input$Agency_ID ,Sys.Date(), ".svg", sep="")
-            },
-            content = function(file) {
-                
-                graphExport <- data %>% #a data.frame with the information in the table above
-                    mutate(status = NA) %>%
-                    mutate(lifecycle_id = NA) %>%
-                    mutate(activity_instance = 1:nrow(.)) %>%
-                    
-                    eventlog(
-                        case_id = "traceid",
-                        activity_id = "request_type_desc",
-                        activity_instance_id = "activity_instance",
-                        lifecycle_id = "lifecycle_id",
-                        timestamp = "log_ts",
-                        resource_id = "pseudo_city_code",
-                        validate = FALSE
-                    ) %>%
-                    
-                    filter_activity_frequency(percentage = input$frequency) %>%
-                    process_map(
-                        type = frequency("absolute"),
-                        sec_edges = performance(mean, "mins"),
-                        rankdir = "TB",
-                        render = FALSE
-                    )
-                
-                export_graph(graphExport, file_name = file , file_type = "SVG")
-                
-            }
-        )
-        
     })
+    
+    output$downloadProcessMap <- downloadHandler(
+        filename = function() {
+            paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
+        },
+        content = function(file) {
+            graphExport <- hivedata %>% #a data.frame with the information in the table above
+                mutate(status = NA) %>%
+                mutate(lifecycle_id = NA) %>%
+                mutate(activity_instance = 1:nrow(.)) %>%
+                
+                eventlog(
+                    case_id = "traceid",
+                    activity_id = "request_type_desc",
+                    activity_instance_id = "activity_instance",
+                    lifecycle_id = "lifecycle_id",
+                    timestamp = "log_ts",
+                    resource_id = "pseudo_city_code",
+                    validate = FALSE
+                ) %>%
+                
+                filter_activity_frequency(percentage = input$frequency) %>%
+                process_map(
+                    type = frequency("absolute"),
+                    sec_edges = performance(mean, "mins"),
+                    rankdir = "TB",
+                    render = FALSE
+                )
+            
+            export_graph(graphExport,
+                         file_name = file ,
+                         file_type = "SVG")
+            
+        }
+    )
+    
 }
 
 # Run the application

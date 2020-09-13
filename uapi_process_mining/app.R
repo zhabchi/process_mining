@@ -1,10 +1,4 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
+
 #
 
 library(shiny)
@@ -97,6 +91,16 @@ ui <- dashboardPage(
             ),
         ))),
         
+        fluidRow(column(12, div(
+            selectInput(
+                "ExclTraceIDs",
+                label = "Excluded Trace IDs",
+                choices = NULL,
+                width = '100%',
+                multiple = TRUE
+            )
+        ))),
+        
         fluidRow(column(12, div(style = "height:20px"))),
         
         
@@ -128,17 +132,7 @@ ui <- dashboardPage(
                 
             )
         ))),
-        
-        
-        fluidRow(column(12, div(
-            selectInput(
-                "ExclTraceIDs",
-                label = "Excluded Trace IDs",
-                choices = NULL,
-                width = '100%',
-                multiple = TRUE
-            )
-        ))),
+      
         
        
         fluidRow(column(
@@ -316,23 +310,24 @@ server <- function(input, output, session) {
         
         removeNotification(msgId)
         
+        ## remove empty trace id and all unwanted trace ids
+        
+        
+        hivedata <-
+            hivedata %>% filter(!(traceid %in% c("", " ")))
+        
+        
+        hivedata <-   hivedata %>% filter(!(traceid  %in% input$ExclTraceIDs))
+        
         if (nrow(hivedata) == 0) {
+            output$Pr_map <- NULL
             msgId <-
                 showNotification("No data in Hive for the selected parameters." ,  type = "warning")
         }
         
         else
         {
-            ## remove empty trace id and all unwanted trace ids
-          
-            
-            hivedata <-
-                hivedata %>% filter(!(traceid %in% c("", " ")))
-            
            
-            hivedata <-   hivedata %>% filter(!(traceid  %in% input$ExclTraceIDs))
-            
-            
             msgId <-
                 showNotification("Generating Plot." ,  type = "message")
             

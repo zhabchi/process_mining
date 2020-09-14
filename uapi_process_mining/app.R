@@ -127,7 +127,7 @@ ui <- dashboardPage(
                 min = 0.1,
                 max = 1,
                 value = 0.1,
-                step = 0.05,
+                step = 0.01,
                 width = "100%"
                 
             )
@@ -190,6 +190,22 @@ ui <- dashboardPage(
                     height = "100%",
                     #collapsible = TRUE
                 )
+            ),
+            
+            tabPanel(
+              title = tagList(
+                icon("fingerprint"),
+                "Trace Id Usage"
+              ),
+              
+              box(
+                grVizOutput("traceId_plot", height = "800px"),
+                #status = "primary",
+                solidHeader = TRUE,
+                
+                width = "100%",
+                height = "100%",
+              )
             )
         )
     ))
@@ -209,7 +225,7 @@ server <- function(input, output, session) {
         
         
         msgId <-
-            showNotification("Retreiving data from HIVE server." ,  type = "message")
+            showNotification("Retreiving data from HIVE server." ,  type = "message" , duration = NULL)
         
         
         url <-
@@ -277,91 +293,102 @@ server <- function(input, output, session) {
         
         
         ##
-        ##res = POST(url, body =  parambody , encode = "form" )
+        res = POST(url, body =  parambody , encode = "form" )
         
-        ##
-        ##hivedata = fromJSON(rawToChar(res$content))
-        
-        
-        
-        hivedata <-
-            IBIBO_WEB_Hierarchy2020_06_01_00_00 <-
-            read_csv("Workflow from Website.csv")
-        
-        hivedata$log_ts <-
-            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-        
-        
-        # PCCs <- unique(data$pseudo_city_code)
-        # updateSelectInput(session, "PCCs",
-        #                  label = "Filter by PCC",
-        #                  choices = PCCs
-        # )
-        
-        
-        tempSlcted <- input$ExclTraceIDs
-        traceIds <- unique(hivedata$traceid)
-        updateSelectInput(session, "ExclTraceIDs",
-                          choices = traceIds,
-                          selected = tempSlcted
-                          )
+        ##check response
+        if (res$status_code == 200)
+        {
+            ##
+            hivedata = fromJSON(rawToChar(res$content))
         
         
         
-        removeNotification(msgId)
-        
-        ## remove empty trace id and all unwanted trace ids
-        
-        
-        hivedata <-
-            hivedata %>% filter(!(traceid %in% c("", " ")))
-        
-        
-        hivedata <-   hivedata %>% filter(!(traceid  %in% input$ExclTraceIDs))
-        
-        if (nrow(hivedata) == 0) {
-            output$Pr_map <- NULL
-            msgId <-
-                showNotification("No data in Hive for the selected parameters." ,  type = "warning")
-        }
+            #hivedata <-
+            #    read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+            
+          
+            
+            
+            # PCCs <- unique(data$pseudo_city_code)
+            # updateSelectInput(session, "PCCs",
+            #                  label = "Filter by PCC",
+            #                  choices = PCCs
+            # )
+            
+            
+            tempSlcted <- input$ExclTraceIDs
+            traceIds <- unique(hivedata$traceid)
+            updateSelectInput(session, "ExclTraceIDs",
+                              choices = traceIds,
+                              selected = tempSlcted
+                              )
+            
+            
+            
+            removeNotification(msgId)
+            
+            ## remove empty trace id and all unwanted trace ids
+            
+            
+            hivedata <-
+                hivedata %>% filter(!(traceid %in% c("", " ")))
+            
+            
+            hivedata <-   hivedata %>% filter(!(traceid  %in% input$ExclTraceIDs))
+            
+            if (nrow(hivedata) == 0) {
+                output$Pr_map <- NULL
+                msgId <-
+                    showNotification("No data in Hive for the selected parameters." ,  type = "warning")
+            }
+            
+            else
+            {
+              hivedata$log_ts <-
+                as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+              
+                msgId <-
+                    showNotification("Generating Plot." ,  type = "message")
+                
+                output$Pr_map <- renderGrViz({
+                   
+                    pp <-
+                        hivedata %>% #a data.frame with the information in the table above
+                        mutate(status = NA) %>%
+                        mutate(lifecycle_id = NA) %>%
+                        mutate(activity_instance = 1:nrow(.)) %>%
+                        
+                        eventlog(
+                            case_id = "traceid",
+                            activity_id = "request_type_desc",
+                            activity_instance_id = "activity_instance",
+                            lifecycle_id = "lifecycle_id",
+                            timestamp = "log_ts",
+                            resource_id = "pseudo_city_code",
+                            validate = FALSE
+                        ) %>%
+                        
+                        filter_activity_frequency(percentage = input$frequency) %>%
+                        process_map(
+                            type = frequency("absolute"),
+                            sec_edges = performance(mean, "mins"),
+                            rankdir = "TB"
+                        )
+                    
+                })
+                
+                removeNotification(msgId)
+            }
+          }
         
         else
         {
-           
-            msgId <-
-                showNotification("Generating Plot." ,  type = "message")
-            
-            output$Pr_map <- renderGrViz({
-               
-                pp <-
-                    hivedata %>% #a data.frame with the information in the table above
-                    mutate(status = NA) %>%
-                    mutate(lifecycle_id = NA) %>%
-                    mutate(activity_instance = 1:nrow(.)) %>%
-                    
-                    eventlog(
-                        case_id = "traceid",
-                        activity_id = "request_type_desc",
-                        activity_instance_id = "activity_instance",
-                        lifecycle_id = "lifecycle_id",
-                        timestamp = "log_ts",
-                        resource_id = "pseudo_city_code",
-                        validate = FALSE
-                    ) %>%
-                    
-                    filter_activity_frequency(percentage = input$frequency) %>%
-                    process_map(
-                        type = frequency("absolute"),
-                        sec_edges = performance(mean, "mins"),
-                        rankdir = "TB"
-                    )
-                
-            })
-            
-            removeNotification(msgId)
+          removeNotification(msgId)
+          msgId <-  showNotification("Error connecting to HIVE server." ,  type = "error")
         }
         
-    })
+        })
+    
     
     output$downloadProcessMap <- downloadHandler(
         filename = function() {

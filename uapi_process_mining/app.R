@@ -1,6 +1,8 @@
 
 
 
+
+
 #
 
 library(shiny)
@@ -44,11 +46,13 @@ ui <- dashboardPage(
     fluidRow(column(12, div(style = "height:10px"))),
     
     fluidRow(column(12, div(
-      selectInput("PCC",
-                label = "PCC",
-                choices = "All",
-                width = '100%',
-                multiple = F)
+      selectInput(
+        "PCC",
+        label = "PCC",
+        choices = "All",
+        width = '100%',
+        multiple = F
+      )
     ))),
     
     fluidRow(column(12, div(style = "height:10px"))),
@@ -219,14 +223,12 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
-  
   #filterHiveDate <- reactive({
-    
+  
   #})
   
   observeEvent(input$PLOT, {
-    
-    if(input$Agency_ID == "")
+    if (input$Agency_ID == "")
     {
       showNotification("Please choose an Agency to proceed" ,
                        type = "warning")
@@ -303,98 +305,106 @@ server <- function(input, output, session) {
       parambody <- list(json = jsonargs)
       
       ##
-      msgId <- showNotification("Retreiving data from HIVE server." ,
-                                type = "message" ,
-                                duration = NULL)
+      msgId <-
+        showNotification("Retreiving data from HIVE server." ,
+                         type = "message" ,
+                         duration = NULL)
       
       res = POST(url, body =  parambody , encode = "form")
       
       
-      ##check response
+      ##check response code
       if (res$status_code == 200)
       {
         ##
         removeNotification(msgId)
         hivedata = fromJSON(rawToChar(res$content))
-        
+      
         #hivedata <- read_csv("Workflow from Website.csv")
         
-        hivedata <-
-          hivedata %>% filter(!(traceid %in% c("", " "))) %>%
-          filter(!(traceid  %in% input$ExclTraceIDs))
-        
-        hivedata$log_ts <-
-          as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        ##check if return is empty content
+        if (rawToChar(res$content) != "[]") {
+          hivedata <-
+            hivedata %>% filter(!(traceid %in% c("", " "))) %>%
+            filter(!(traceid  %in% input$ExclTraceIDs))
+          
+          hivedata$log_ts <-
+            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+          
+          
+          tempSlcted <- input$ExclTraceIDs
+          traceIds <- unique(hivedata$traceid)
+          updateSelectInput(session,
+                            "ExclTraceIDs",
+                            choices = traceIds,
+                            selected = tempSlcted)
+          
+          
+          tempSlcted <- input$PCC
+          Pccs <- unique(hivedata$pseudo_city_code)
+          Pccs <- prepend(Pccs , "All")
+          updateSelectInput(session,
+                            "PCC",
+                            choices = Pccs,
+                            selected = tempSlcted)
+          
+          
+          
+          
+          output$Pr_map <- renderGrViz({
+            hivedata <- hivedata  %>%
+              filter(!(traceid  %in% input$ExclTraceIDs))
+            
+            if (input$PCC != "All")
+            {
+              hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
+            }
+            
+            if (nrow(hivedata) == 0) {
+              showNotification("No data in Hive for the selected parameters." ,
+                               type = "warning")
+              pp <- NULL
+            }
+            else
+            {
+              pp <-
+                hivedata %>% #a data.frame with the information in the table above
+                mutate(status = NA) %>%
+                mutate(lifecycle_id = NA) %>%
+                mutate(activity_instance = 1:nrow(.)) %>%
+                
+                eventlog(
+                  case_id = "traceid",
+                  activity_id = "request_type_desc",
+                  activity_instance_id = "activity_instance",
+                  lifecycle_id = "lifecycle_id",
+                  timestamp = "log_ts",
+                  resource_id = "pseudo_city_code",
+                  validate = FALSE
+                ) %>%
+                
+                filter_activity_frequency(percentage = input$frequency) %>%
+                process_map(
+                  type = frequency("absolute"),
+                  sec_edges = performance(mean, "mins"),
+                  rankdir = "TB"
+                )
+            }
+          })
+        }
+        else {
+          removeNotification(msgId)
+          msgId <-
+            showNotification("No data returned for selected Agency." ,  type = "warning")
+        }
       }
+      
       else
       {
         removeNotification(msgId)
-         msgId <-
+        msgId <-
           showNotification("Error connecting to HIVE server." ,  type = "error")
       }
-      
-      
-      
-      tempSlcted <- input$ExclTraceIDs
-      traceIds <- unique(hivedata$traceid)
-      updateSelectInput(session,
-                        "ExclTraceIDs",
-                        choices = traceIds,
-                        selected = tempSlcted)
-      
-      
-      tempSlcted <- input$PCC
-      Pccs <- unique(hivedata$pseudo_city_code)
-      Pccs <- prepend(Pccs , "All")
-      print(Pccs)
-      updateSelectInput(session,
-                        "PCC",
-                        choices = Pccs,
-                        selected = tempSlcted)
-      
-      
-      
-      output$Pr_map <- renderGrViz({
-        
-        hivedata <- hivedata  %>% 
-          filter(!(traceid  %in% input$ExclTraceIDs)) 
-    
-        if(input$PCC != "All")
-        {
-          hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
-        }
-        
-        if (nrow(hivedata) == 0) {
-          showNotification("No data in Hive for the selected parameters." ,  type = "warning")
-          pp <- NULL
-        }
-        else
-        {
-         
-          pp <-
-            hivedata %>% #a data.frame with the information in the table above
-            mutate(status = NA) %>%
-            mutate(lifecycle_id = NA) %>%
-            mutate(activity_instance = 1:nrow(.)) %>%
-            
-            eventlog(
-              case_id = "traceid",
-              activity_id = "request_type_desc",
-              activity_instance_id = "activity_instance",
-              lifecycle_id = "lifecycle_id",
-              timestamp = "log_ts",
-              resource_id = "pseudo_city_code",
-              validate = FALSE
-            ) %>%
-            
-            filter_activity_frequency(percentage = input$frequency) %>%
-            process_map(
-              type = frequency("absolute"),
-              sec_edges = performance(mean, "mins"),
-              rankdir = "TB"
-            )
-        }
-      })
     }
   })
   

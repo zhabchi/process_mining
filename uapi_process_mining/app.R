@@ -155,6 +155,13 @@ ui <- dashboardPage(
         width = "40%",
         height = "40%",
         style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+      ),
+      downloadButton(
+        outputId = "downloadRawData",
+        label = "Download Data",
+        width = "40%",
+        height = "40%",
+        style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
       )
       
     )),
@@ -198,7 +205,7 @@ ui <- dashboardPage(
           
           #title = "Workflow",
           width = "100%",
-          height = "100%",
+          height = "100%"
           #collapsible = TRUE
         )
       ),
@@ -213,7 +220,7 @@ ui <- dashboardPage(
           solidHeader = TRUE,
           
           width = "100%",
-          height = "100%",
+          height = "100%"
         )
       )
     )
@@ -320,12 +327,11 @@ server <- function(input, output, session) {
         removeNotification(msgId)
         hivedata = fromJSON(rawToChar(res$content))
       
-        #hivedata <- read_csv("Workflow from Website.csv")
+        #hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
         
         ##check if return is empty content
         if (rawToChar(res$content) != "[]") {
-          hivedata <-
-            hivedata %>% filter(!(traceid %in% c("", " "))) %>%
+          hivedata <- hivedata %>% filter(!(traceid %in% c("", " "))) %>%
             filter(!(traceid  %in% input$ExclTraceIDs))
           
           hivedata$log_ts <-
@@ -367,8 +373,7 @@ server <- function(input, output, session) {
             }
             else
             {
-              pp <-
-                hivedata %>% #a data.frame with the information in the table above
+              pp <- hivedata %>% #a data.frame with the information in the table above
                 mutate(status = NA) %>%
                 mutate(lifecycle_id = NA) %>%
                 mutate(activity_instance = 1:nrow(.)) %>%
@@ -406,44 +411,53 @@ server <- function(input, output, session) {
           showNotification("Error connecting to HIVE server." ,  type = "error")
       }
     }
+    
+    output$downloadRawData <- downloadHandler(
+      filename = function(){
+        paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
+      },
+      content = function(file){
+        write.csv(hivedata , file)
+      }
+    )
+    
+    
+    output$downloadProcessMap <- downloadHandler(
+      filename = function() {
+        paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
+      },
+      content = function(file) {
+        graphExport <- hivedata %>% #a data.frame with the information in the table above
+          mutate(status = NA) %>%
+          mutate(lifecycle_id = NA) %>%
+          mutate(activity_instance = 1:nrow(.)) %>%
+          
+          eventlog(
+            case_id = "traceid",
+            activity_id = "request_type_desc",
+            activity_instance_id = "activity_instance",
+            lifecycle_id = "lifecycle_id",
+            timestamp = "log_ts",
+            resource_id = "pseudo_city_code",
+            validate = FALSE
+          ) %>%
+          
+          filter_activity_frequency(percentage = input$frequency) %>%
+          process_map(
+            type = frequency("absolute"),
+            sec_edges = performance(mean, "mins"),
+            rankdir = "TB",
+            render = FALSE
+          )
+        
+        export_graph(graphExport,
+                     file_name = file ,
+                     file_type = "SVG")
+        
+      }
+    )
+    
   })
-  
-  
-  output$downloadProcessMap <- downloadHandler(
-    filename = function() {
-      paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
-    },
-    content = function(file) {
-      graphExport <-
-        hivedata %>% #a data.frame with the information in the table above
-        mutate(status = NA) %>%
-        mutate(lifecycle_id = NA) %>%
-        mutate(activity_instance = 1:nrow(.)) %>%
-        
-        eventlog(
-          case_id = "traceid",
-          activity_id = "request_type_desc",
-          activity_instance_id = "activity_instance",
-          lifecycle_id = "lifecycle_id",
-          timestamp = "log_ts",
-          resource_id = "pseudo_city_code",
-          validate = FALSE
-        ) %>%
-        
-        filter_activity_frequency(percentage = input$frequency) %>%
-        process_map(
-          type = frequency("absolute"),
-          sec_edges = performance(mean, "mins"),
-          rankdir = "TB",
-          render = FALSE
-        )
-      
-      export_graph(graphExport,
-                   file_name = file ,
-                   file_type = "SVG")
-      
-    }
-  )
   
 }
 

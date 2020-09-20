@@ -19,6 +19,7 @@ library(shinydashboard)
 library(shinyTime)
 library(DiagrammeRsvg)
 library(rsvg)
+library(DT)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
@@ -81,6 +82,7 @@ ui <- dashboardPage(
     fluidRow(column(12, div(
       column(
         6,
+        align = "center",
         timeInput(
           "FromTime",
           "From Time",
@@ -90,18 +92,15 @@ ui <- dashboardPage(
       ),
       column(
         6,
+        align = "center",
         timeInput(
           "ToTime",
           "To Time",
           value =  strptime("23:59", "%R"),
-          seconds = FALSE
+          seconds = FALSE,
         )
       ),
     ))),
-    
-    
-    
-    fluidRow(column(12, div(style = "height:20px"))),
     
     
     fluidRow(column(
@@ -222,6 +221,14 @@ ui <- dashboardPage(
           width = "100%",
           height = "100%"
         )
+      ),
+      
+      tabPanel(title = tagList(icon("fingerprint"), "Raw data"),
+        
+        box(
+          DT::dataTableOutput("RawData"),
+          width = "100%"
+        )
       )
     )
   ))
@@ -317,26 +324,30 @@ server <- function(input, output, session) {
                          type = "message" ,
                          duration = NULL)
       
-      res = POST(url, body =  parambody , encode = "form")
+      #res = POST(url, body =  parambody , encode = "form")
       
       
       ##check response code
-      if (res$status_code == 200)
-      {
+      #if (res$status_code == 200)
+      #{
         ##
-        removeNotification(msgId)
-        hivedata = fromJSON(rawToChar(res$content))
+      #  removeNotification(msgId)
+      #  hivedata = fromJSON(rawToChar(res$content))
       
-        #hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+        hivedata <- read_csv("Workflow from Website.csv")
         
         ##check if return is empty content
-        if (rawToChar(res$content) != "[]") {
+        #if (rawToChar(res$content) != "[]") 
+          {
           hivedata <- hivedata %>% filter(!(traceid %in% c("", " "))) %>%
             filter(!(traceid  %in% input$ExclTraceIDs))
           
           hivedata$log_ts <-
             as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
           
+          output$RawData = DT::renderDataTable({
+            hivedata
+          })
           
           tempSlcted <- input$ExclTraceIDs
           traceIds <- unique(hivedata$traceid)
@@ -397,20 +408,20 @@ server <- function(input, output, session) {
             }
           })
         }
-        else {
-          removeNotification(msgId)
-          msgId <-
-            showNotification("No data returned for selected Agency." ,  type = "warning")
-        }
+        #else {
+        #  removeNotification(msgId)
+        #  msgId <-
+        #    showNotification("No data returned for selected Agency." ,  type = "warning")
+        #}
       }
       
-      else
-      {
-        removeNotification(msgId)
-        msgId <-
-          showNotification("Error connecting to HIVE server." ,  type = "error")
-      }
-    }
+    #  else
+    #  {
+    #    removeNotification(msgId)
+    #    msgId <-
+    #      showNotification("Error connecting to HIVE server." ,  type = "error")
+    #  }
+    #}
     
     output$downloadRawData <- downloadHandler(
       filename = function(){

@@ -1,16 +1,11 @@
-
-
-
-
-
-#
-
 library(shiny)
 library(bupaR)
 library(readr)
 library(dplyr)
 library(tidyverse)
 library(processmapR)
+library(processanimateR)
+library(eventdataR)
 library(visNetwork)
 library(DiagrammeR)
 library(httr)
@@ -165,6 +160,9 @@ ui <- dashboardPage(
       
     )),
     
+    fluidRow(column(12, div(
+      actionButton("animate", "Animate")
+    ))),
     
     fluidRow(column(12, div(style = "padding:15px", strong(
       em(
@@ -223,7 +221,7 @@ ui <- dashboardPage(
         )
       ),
       
-      tabPanel(title = tagList(icon("fingerprint"), "Raw data"),
+      tabPanel(title = tagList(icon("table"), "Raw data"),
         
         box(
           DT::dataTableOutput("RawData"),
@@ -405,6 +403,7 @@ server <- function(input, output, session) {
                   sec_edges = performance(mean, "mins"),
                   rankdir = "TB"
                 )
+              animate_process(pp, mapping = token_aes(color = token_scale("red")))
             }
           })
         }
@@ -422,6 +421,11 @@ server <- function(input, output, session) {
     #      showNotification("Error connecting to HIVE server." ,  type = "error")
     #  }
     #}
+    
+    observeEvent(input$animate, {
+      animate_process(pp, mapping = token_aes(color = token_scale("red")))
+    })
+    
     
     output$downloadRawData <- downloadHandler(
       filename = function(){

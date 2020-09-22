@@ -160,9 +160,6 @@ ui <- dashboardPage(
       
     )),
     
-    fluidRow(column(12, div(
-      actionButton("animate", "Animate")
-    ))),
     
     fluidRow(column(12, div(style = "padding:15px", strong(
       em(
@@ -221,11 +218,22 @@ ui <- dashboardPage(
         )
       ),
       
-      tabPanel(title = tagList(icon("table"), "Raw data"),
+      tabPanel(
+        title = tagList(icon("table"), "Raw data"),
+        
+        box(DT::dataTableOutput("RawData"),
+            width = "100%")
+      )
+      
+      ,
+      
+      tabPanel(
+        title = tagList(icon("cogs"), "Animation"),
         
         box(
-          DT::dataTableOutput("RawData"),
-          width = "100%"
+          shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
+          width = "100%",
+          height = "100%"
         )
       )
     )
@@ -328,92 +336,94 @@ server <- function(input, output, session) {
       ##check response code
       #if (res$status_code == 200)
       #{
-        ##
+      ##
       #  removeNotification(msgId)
       #  hivedata = fromJSON(rawToChar(res$content))
       
-        hivedata <- read_csv("Workflow from Website.csv")
+      hivedata <- read_csv("Workflow from Website.csv")
+      
+      ##check if return is empty content
+      #if (rawToChar(res$content) != "[]")
+      {
+        hivedata <- hivedata %>% filter(!(traceid %in% c("", " "))) %>%
+          filter(!(traceid  %in% input$ExclTraceIDs))
         
-        ##check if return is empty content
-        #if (rawToChar(res$content) != "[]") 
-          {
-          hivedata <- hivedata %>% filter(!(traceid %in% c("", " "))) %>%
+        hivedata$log_ts <-
+          as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        
+        output$RawData = DT::renderDataTable({
+          hivedata
+        })
+        
+        tempSlcted <- input$ExclTraceIDs
+        traceIds <- unique(hivedata$traceid)
+        updateSelectInput(session,
+                          "ExclTraceIDs",
+                          choices = traceIds,
+                          selected = tempSlcted)
+        
+        
+        tempSlcted <- input$PCC
+        Pccs <- unique(hivedata$pseudo_city_code)
+        Pccs <- prepend(Pccs , "All")
+        updateSelectInput(session,
+                          "PCC",
+                          choices = Pccs,
+                          selected = tempSlcted)
+        
+        
+        
+        
+        output$Pr_map <- renderGrViz({
+          hivedata <- hivedata  %>%
             filter(!(traceid  %in% input$ExclTraceIDs))
           
-          hivedata$log_ts <-
-            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+          if (input$PCC != "All")
+          {
+            hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
+          }
           
-          output$RawData = DT::renderDataTable({
-            hivedata
-          })
-          
-          tempSlcted <- input$ExclTraceIDs
-          traceIds <- unique(hivedata$traceid)
-          updateSelectInput(session,
-                            "ExclTraceIDs",
-                            choices = traceIds,
-                            selected = tempSlcted)
-          
-          
-          tempSlcted <- input$PCC
-          Pccs <- unique(hivedata$pseudo_city_code)
-          Pccs <- prepend(Pccs , "All")
-          updateSelectInput(session,
-                            "PCC",
-                            choices = Pccs,
-                            selected = tempSlcted)
-          
-          
-          
-          
-          output$Pr_map <- renderGrViz({
-            hivedata <- hivedata  %>%
-              filter(!(traceid  %in% input$ExclTraceIDs))
-            
-            if (input$PCC != "All")
-            {
-              hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
-            }
-            
-            if (nrow(hivedata) == 0) {
-              showNotification("No data in Hive for the selected parameters." ,
-                               type = "warning")
-              pp <- NULL
-            }
-            else
-            {
-              pp <- hivedata %>% #a data.frame with the information in the table above
-                mutate(status = NA) %>%
-                mutate(lifecycle_id = NA) %>%
-                mutate(activity_instance = 1:nrow(.)) %>%
-                
-                eventlog(
-                  case_id = "traceid",
-                  activity_id = "request_type_desc",
-                  activity_instance_id = "activity_instance",
-                  lifecycle_id = "lifecycle_id",
-                  timestamp = "log_ts",
-                  resource_id = "pseudo_city_code",
-                  validate = FALSE
-                ) %>%
-                
-                filter_activity_frequency(percentage = input$frequency) %>%
-                process_map(
-                  type = frequency("absolute"),
-                  sec_edges = performance(mean, "mins"),
-                  rankdir = "TB"
-                )
-              animate_process(pp, mapping = token_aes(color = token_scale("red")))
-            }
-          })
-        }
-        #else {
-        #  removeNotification(msgId)
-        #  msgId <-
-        #    showNotification("No data returned for selected Agency." ,  type = "warning")
-        #}
+          if (nrow(hivedata) == 0) {
+            showNotification("No data in Hive for the selected parameters." ,
+                             type = "warning")
+            pp <- NULL
+          }
+          else
+          {
+            pp <-
+              hivedata %>% #a data.frame with the information in the table above
+              mutate(status = NA) %>%
+              mutate(lifecycle_id = NA) %>%
+              mutate(activity_instance = 1:nrow(.)) %>%
+              
+              eventlog(
+                case_id = "traceid",
+                activity_id = "request_type_desc",
+                activity_instance_id = "activity_instance",
+                lifecycle_id = "lifecycle_id",
+                timestamp = "log_ts",
+                resource_id = "pseudo_city_code",
+                validate = FALSE
+              ) %>%
+              
+              filter_activity_frequency(percentage = input$frequency) %>%
+              process_map(
+                type = frequency("absolute"),
+                sec_edges = performance(mean, "mins"),
+                rankdir = "TB"
+              )
+          }
+        })
+        
+        
       }
-      
+      #else {
+      #  removeNotification(msgId)
+      #  msgId <-
+      #    showNotification("No data returned for selected Agency." ,  type = "warning")
+      #}
+    }
+    
     #  else
     #  {
     #    removeNotification(msgId)
@@ -422,16 +432,50 @@ server <- function(input, output, session) {
     #  }
     #}
     
-    observeEvent(input$animate, {
-      animate_process(pp, mapping = token_aes(color = token_scale("red")))
+    
+      output$process <- renderProcessanimater(expr = {
+      
+        eventloghive <-  hivedata %>% #a data.frame with the information in the table above
+          mutate(status = NA) %>%
+          mutate(lifecycle_id = NA) %>%
+          mutate(activity_instance = 1:nrow(.)) %>%
+          
+          eventlog(
+            case_id = "traceid",
+            activity_id = "request_type_desc",
+            activity_instance_id = "activity_instance",
+            lifecycle_id = "lifecycle_id",
+            timestamp = "log_ts",
+            resource_id = "pseudo_city_code",
+            validate = FALSE
+          ) %>%
+          filter_activity_frequency(percentage = input$frequency)
+        
+        graph <-  process_map(eventloghive, render = F,  type = frequency("absolute"),
+                              sec_edges = performance(mean, "mins"),
+                              rankdir = "TB")
+        
+        model <- DiagrammeR::add_global_graph_attrs(
+            graph,
+            attr = "rankdir",
+            value = "TB",
+            attr_type = "graph"
+          )
+        
+        animate_process(eventloghive, model,
+                        mode = "relative",
+                        mapping = token_aes(size = token_scale("none", scale = "linear", range = c(1,10))),
+                        duration = 5)
+        
+    
     })
     
     
     output$downloadRawData <- downloadHandler(
-      filename = function(){
+      filename = function() {
         paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
       },
-      content = function(file){
+      content = function(file) {
         write.csv(hivedata , file)
       }
     )
@@ -442,7 +486,8 @@ server <- function(input, output, session) {
         paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
       },
       content = function(file) {
-        graphExport <- hivedata %>% #a data.frame with the information in the table above
+        graphExport <-
+          hivedata %>% #a data.frame with the information in the table above
           mutate(status = NA) %>%
           mutate(lifecycle_id = NA) %>%
           mutate(activity_instance = 1:nrow(.)) %>%

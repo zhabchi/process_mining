@@ -15,6 +15,7 @@ library(shinyTime)
 library(DiagrammeRsvg)
 library(rsvg)
 library(DT)
+library(ggplot2)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
@@ -186,6 +187,17 @@ ui <- dashboardPage(
       height = "100%",
       width = "100%",
       
+      
+      tabPanel(
+        title = tagList(icon("cogs"), "Animation"),
+        
+        box(
+          shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
+          width = "100%",
+          height = "100%"
+        )
+      ),
+      
       tabPanel(
         title = tagList(
           icon("project-diagram", class = "fas fa-project-diagram"),
@@ -209,11 +221,19 @@ ui <- dashboardPage(
                         "Trace Id Usage"),
         
         box(
-          grVizOutput("traceId_plot", height = "800px"),
+          DT::dataTableOutput("traceID_aggr"),
           #status = "primary",
           solidHeader = TRUE,
           
-          width = "100%",
+          width = "33%",
+          height = "100%"
+        ),
+        box(
+          plotOutput("traceId_plot", height = "400px"),
+          #status = "primary",
+          solidHeader = TRUE,
+          
+          width = "33%",
           height = "100%"
         )
       ),
@@ -225,17 +245,7 @@ ui <- dashboardPage(
             width = "100%")
       )
       
-      ,
       
-      tabPanel(
-        title = tagList(icon("cogs"), "Animation"),
-        
-        box(
-          shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
-          width = "100%",
-          height = "100%"
-        )
-      )
     )
   ))
 )
@@ -355,6 +365,27 @@ server <- function(input, output, session) {
           hivedata
         })
         
+        
+        output$traceID_aggr = DT::renderDataTable({
+          
+          hivedataaggr <-  hivedata %>% group_by(traceid) %>% summarise(count_trace =n())
+          hivedataaggr
+        })
+        
+        
+        output$traceId_plot <-  renderPlot({
+          totalReq <- nrow(hivedata)
+          hivedataplot <-  hivedata %>% group_by(request_type_desc) %>%
+            mutate(emptyTrace = ifelse( is.na(traceid), 1 , 0)) %>%
+            summarise(count_req =  n() , emptytracecount = sum(emptyTrace) , percUsage = (n() - sum(emptyTrace))/n() )
+          
+          ggplot(hivedataplot, aes(x=reorder(`request_type_desc` , percUsage*100), y = percUsage*100)) + 
+            geom_bar(stat='identity') +
+            xlab('Request') +
+            ylab('Number of Requests') +
+            coord_flip()
+        })
+        
         tempSlcted <- input$ExclTraceIDs
         traceIds <- unique(hivedata$traceid)
         updateSelectInput(session,
@@ -464,7 +495,7 @@ server <- function(input, output, session) {
         
         animate_process(eventloghive, model,
                         mode = "relative",
-                        mapping = token_aes(size = token_scale("none", scale = "linear", range = c(1,10))),
+                        mapping = token_aes(size = token_scale(6)),
                         duration = 5)
         
     

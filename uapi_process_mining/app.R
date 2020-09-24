@@ -188,17 +188,7 @@ ui <- dashboardPage(
       width = "100%",
       
       
-      tabPanel(
-        title = tagList(icon("cogs"), "Animation"),
-        
-        box(
-          shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
-          width = "100%",
-          height = "100%"
-        )
-      ),
-      
-      tabPanel(
+     tabPanel(
         title = tagList(
           icon("project-diagram", class = "fas fa-project-diagram"),
           "Workflow Visualization"
@@ -215,6 +205,16 @@ ui <- dashboardPage(
           #collapsible = TRUE
         )
       ),
+     
+     tabPanel(
+       title = tagList(icon("cogs"), "Animation"),
+       
+       box(
+         shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
+         width = "100%",
+         height = "100%"
+       )
+     ),
       
       tabPanel(
         title = tagList(icon("fingerprint"),
@@ -278,7 +278,7 @@ server <- function(input, output, session) {
       param3 <-   " 00:00\", \"endDate\":\""
       param4 <-   " 00:00\", \"successVal\":\"All\",
                         \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
-                        \"rowLimit\":\"5000\",
+                        \"rowLimit\":\"10000\",
                         \"outputFormat\":\"json\",
                         \"orderBy\":\"\",
                         \"ascendDescend\":\"ASC\",
@@ -350,25 +350,20 @@ server <- function(input, output, session) {
       #  removeNotification(msgId)
       #  hivedata = fromJSON(rawToChar(res$content))
       
-      hivedata <- read_csv("Workflow from Website.csv")
+      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
       
       ##check if return is empty content
       #if (rawToChar(res$content) != "[]")
       {
-        hivedata <- hivedata %>% filter(!(traceid %in% c("", " "))) %>%
-          filter(!(traceid  %in% input$ExclTraceIDs))
-        
-        hivedata$log_ts <-
-          as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-        
-        output$RawData = DT::renderDataTable({
-          hivedata
-        })
-        
-        
+        hivedata <- hivedata %>% 
+          filter(!(is.na(traceid))) 
+          
         output$traceID_aggr = DT::renderDataTable({
           
-          hivedataaggr <-  hivedata %>% group_by(traceid) %>% summarise(count_trace =n())
+          hivedataaggr <-  hivedata %>% 
+            group_by(traceid) %>% 
+            summarise(CountTrace =n()) %>% 
+            arrange(desc(CountTrace)) 
           hivedataaggr
         })
         
@@ -385,6 +380,21 @@ server <- function(input, output, session) {
             ylab('Number of Requests') +
             coord_flip()
         })
+        
+      
+        
+        hivedata$log_ts <-
+          as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+        
+        #filtering top 100000 records for performance reasons
+        hivedata <- head(hivedata, 100000)
+        
+        output$RawData = DT::renderDataTable({
+          hivedata
+        })
+        
+        
+        
         
         tempSlcted <- input$ExclTraceIDs
         traceIds <- unique(hivedata$traceid)
@@ -406,7 +416,10 @@ server <- function(input, output, session) {
         
         
         output$Pr_map <- renderGrViz({
-          hivedata <- hivedata  %>%
+          
+          hivedata <- hivedata %>% 
+            filter(!(traceid %in% c("", " "))) %>%
+            filter(!(is.na(traceid))) %>%
             filter(!(traceid  %in% input$ExclTraceIDs))
           
           if (input$PCC != "All")
@@ -466,7 +479,10 @@ server <- function(input, output, session) {
     
       output$process <- renderProcessanimater(expr = {
       
-        eventloghive <-  hivedata %>% #a data.frame with the information in the table above
+        #filtering top 5000 records for performance reasons
+        hivedataAnimate <- head(hivedata, 10000)
+        
+        eventloghive <-  hivedataAnimate %>% #a data.frame with the information in the table above
           mutate(status = NA) %>%
           mutate(lifecycle_id = NA) %>%
           mutate(activity_instance = 1:nrow(.)) %>%

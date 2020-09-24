@@ -182,73 +182,119 @@ ui <- dashboardPage(
     )
   )),
   
+  # fluidRow(
+  #   tabBox(
+  #     height = "100%",
+  #     width = "100%",
+  #     
+  #     
+  #    tabPanel(
+  #       title = tagList(
+  #         icon("project-diagram", class = "fas fa-project-diagram"),
+  #         "Workflow Visualization"
+  #       ),
+  #       
+  #       box(
+  #         grVizOutput("Pr_map", height = "800px"),
+  #         #status = "primary",
+  #         solidHeader = TRUE,
+  #         
+  #         #title = "Workflow",
+  #         width = "100%",
+  #         height = "100%"
+  #         #collapsible = TRUE
+  #       )
+  #     ),
+  #    
+  #    tabPanel(
+  #      title = tagList(icon("cogs"), "Animation"),
+  #      
+  #      box(
+  #        shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
+  #        width = "100%",
+  #        height = "100%"
+  #      )
+  #    ),
+  #     
+  #     tabPanel(
+  #       title = tagList(icon("fingerprint"),
+  #                       "Trace Id Usage"),
+  #       
+  #       box(
+  #         DT::dataTableOutput("traceID_aggr"),
+  #         #status = "primary",
+  #         solidHeader = TRUE,
+  #         
+  #         width = "33%",
+  #         height = "100%"
+  #       ),
+  #       box(
+  #         plotOutput("traceId_plot", height = "400px"),
+  #         #status = "primary",
+  #         solidHeader = TRUE,
+  #         
+  #         width = "33%",
+  #         height = "100%"
+  #       )
+  #     ),
+  #     
+  #     tabPanel(
+  #       title = tagList(icon("table"), "Raw data"),
+  #       
+  #       box(DT::dataTableOutput("RawData"),
+  #           width = "100%")
+  #     )
+  #     
+  #     
+  #   )
+  # )),
+  
   fluidRow(
-    tabBox(
-      height = "100%",
-      width = "100%",
-      
-      
-     tabPanel(
-        title = tagList(
-          icon("project-diagram", class = "fas fa-project-diagram"),
-          "Workflow Visualization"
-        ),
-        
-        box(
-          grVizOutput("Pr_map", height = "800px"),
-          #status = "primary",
-          solidHeader = TRUE,
-          
-          #title = "Workflow",
-          width = "100%",
-          height = "100%"
-          #collapsible = TRUE
-        )
-      ),
-     
-     tabPanel(
-       title = tagList(icon("cogs"), "Animation"),
-       
-       box(
-         shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
-         width = "100%",
-         height = "100%"
-       )
-     ),
-      
-      tabPanel(
-        title = tagList(icon("fingerprint"),
-                        "Trace Id Usage"),
-        
-        box(
-          DT::dataTableOutput("traceID_aggr"),
-          #status = "primary",
-          solidHeader = TRUE,
-          
-          width = "33%",
-          height = "100%"
-        ),
-        box(
-          plotOutput("traceId_plot", height = "400px"),
-          #status = "primary",
-          solidHeader = TRUE,
-          
-          width = "33%",
-          height = "100%"
-        )
-      ),
-      
-      tabPanel(
-        title = tagList(icon("table"), "Raw data"),
-        
-        box(DT::dataTableOutput("RawData"),
-            width = "100%")
-      )
-      
-      
+  mainPanel(width = 12,
+    
+    tabsetPanel(type = "tabs",
+                # tabPanel(title = "Workflow Visualization",
+                #          icon = icon("project-diagram", class = "fas fa-project-diagram"),
+                #          grVizOutput(outputId = "Pr_map"),
+                #          style="width: 100% ; height: 400px",
+                #          ),
+                
+                tabPanel(title = "Workflow Visualization",
+                         icon = icon("project-diagram", class = "fas fa-project-diagram"),
+                         br(), # br() element to introduce extra vertical spacing ----
+                         shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process"))
+                         ),
+                
+                tabPanel(title = "Trace ID Insights",
+                        icon = icon("fingerprint"),
+                        br(),
+                        fluidRow(
+                        box(
+                          width = 6,
+                          title = "Identify Hardcoded Trace IDs",
+                          status = "primary",
+                          solidHeader = TRUE,
+                          DT::dataTableOutput("traceID_aggr"),
+                          ),
+                        
+                        box(
+                          width = 6,
+                          title = "Trace ID usage per Request",
+                          status = "primary",
+                          solidHeader = TRUE,
+                          plotOutput("traceId_plot"),
+                          )
+                        
+                        )),
+                        
+                tabPanel(title = "Raw Data Table")
     )
-  ))
+  )
 )
+)
+)
+
+
 
 
 
@@ -350,7 +396,7 @@ server <- function(input, output, session) {
       #  removeNotification(msgId)
       #  hivedata = fromJSON(rawToChar(res$content))
       
-      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+      hivedata <- read_csv("Workflow from Website.csv")
       
       ##check if return is empty content
       #if (rawToChar(res$content) != "[]")
@@ -508,8 +554,10 @@ server <- function(input, output, session) {
         
         animate_process(eventloghive, model,
                         mode = "relative",
-                        mapping = token_aes(size = token_scale(6)),
-                        duration = 5)
+                        mapping = token_aes(color = token_scale("red")),
+                        duration = 20,
+                        initial_state = "paused"
+                        )
         
     
     })

@@ -355,8 +355,6 @@ server <- function(input, output, session) {
       ##check if return is empty content
       #if (rawToChar(res$content) != "[]")
       {
-        hivedata <- hivedata %>% 
-          filter(!(is.na(traceid))) 
           
         output$traceID_aggr = DT::renderDataTable({
           
@@ -381,7 +379,8 @@ server <- function(input, output, session) {
             coord_flip()
         })
         
-      
+        #hivedata <- hivedata %>% 
+        #  filter(!(is.na(traceid))) 
         
         hivedata$log_ts <-
           as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
@@ -392,8 +391,6 @@ server <- function(input, output, session) {
         output$RawData = DT::renderDataTable({
           hivedata
         })
-        
-        
         
         
         tempSlcted <- input$ExclTraceIDs

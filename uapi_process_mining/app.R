@@ -251,20 +251,16 @@ ui <- dashboardPage(
   
   fluidRow(
   mainPanel(width = 12,
-    
+
     tabsetPanel(type = "tabs",
-                # tabPanel(title = "Workflow Visualization",
-                #          icon = icon("project-diagram", class = "fas fa-project-diagram"),
-                #          grVizOutput(outputId = "Pr_map"),
-                #          style="width: 100% ; height: 400px",
-                #          ),
-                
+
+
                 tabPanel(title = "Workflow Visualization",
                          icon = icon("project-diagram", class = "fas fa-project-diagram"),
-                         br(), # br() element to introduce extra vertical spacing ----
-                         shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process"))
+                         br(),
+                         shinycssloaders::withSpinner(processanimaterOutput(height = "850px", "process"))
                          ),
-                
+
                 tabPanel(title = "Trace ID Insights",
                         icon = icon("fingerprint"),
                         br(),
@@ -276,7 +272,7 @@ ui <- dashboardPage(
                           solidHeader = TRUE,
                           DT::dataTableOutput("traceID_aggr"),
                           ),
-                        
+
                         box(
                           width = 6,
                           title = "Trace ID usage per Request",
@@ -284,11 +280,21 @@ ui <- dashboardPage(
                           solidHeader = TRUE,
                           plotOutput("traceId_plot"),
                           )
-                        
+
                         )),
-                        
-                tabPanel(title = "Raw Data Table")
-    )
+
+                tabPanel(title = "Raw Data Table",
+                         icon = icon("table"),
+                         br(),
+                         DT::dataTableOutput("RawData")
+                         ),
+
+                # tabPanel(title = "Monitor",
+                #          icon = icon("table"),
+                #          br(),
+                #          performance_dashboard(eventlog)
+                # )
+     )
   )
 )
 )
@@ -556,7 +562,7 @@ server <- function(input, output, session) {
                         mode = "relative",
                         mapping = token_aes(color = token_scale("red")),
                         duration = 20,
-                        initial_state = "paused"
+                        initial_state = "paused",
                         )
         
     

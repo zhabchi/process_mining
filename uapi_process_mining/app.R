@@ -16,6 +16,7 @@ library(DiagrammeRsvg)
 library(rsvg)
 library(DT)
 library(ggplot2)
+library(edeaR)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
@@ -270,7 +271,7 @@ ui <- dashboardPage(
                           title = "Identify Hardcoded Trace IDs",
                           status = "primary",
                           solidHeader = TRUE,
-                          DT::dataTableOutput("traceID_aggr"),
+                          DT::dataTableOutput("traceID_aggr", height = 400),
                           ),
 
                         box(
@@ -278,7 +279,7 @@ ui <- dashboardPage(
                           title = "Trace ID usage per Request",
                           status = "primary",
                           solidHeader = TRUE,
-                          plotOutput("traceId_plot"),
+                          plotOutput("traceId_plot", height = 400),
                           )
 
                         )),
@@ -288,12 +289,12 @@ ui <- dashboardPage(
                          br(),
                          DT::dataTableOutput("RawData")
                          ),
-
-                # tabPanel(title = "Monitor",
-                #          icon = icon("table"),
-                #          br(),
-                #          performance_dashboard(eventlog)
-                # )
+                
+                tabPanel(title = "Monitor",
+                         icon = icon("chart-line"),
+                         br(),
+                         valueBoxOutput("loopBox")
+                )
      )
   )
 )
@@ -577,6 +578,13 @@ server <- function(input, output, session) {
         write.csv(hivedata , file)
       }
     )
+    
+    output$loopBox <- renderValueBox({
+      valueBox(value = number_of_selfloops(eventlog), "Approval", icon = icon("thumbs-up", lib = "glyphicon"),
+        color = "yellow"
+      )
+    })
+    
     
     
     output$downloadProcessMap <- downloadHandler(

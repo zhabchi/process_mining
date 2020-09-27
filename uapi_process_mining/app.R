@@ -187,45 +187,45 @@ ui <- dashboardPage(
   #   tabBox(
   #     height = "100%",
   #     width = "100%",
-  #     
-  #     
+  #
+  #
   #    tabPanel(
   #       title = tagList(
   #         icon("project-diagram", class = "fas fa-project-diagram"),
   #         "Workflow Visualization"
   #       ),
-  #       
+  #
   #       box(
   #         grVizOutput("Pr_map", height = "800px"),
   #         #status = "primary",
   #         solidHeader = TRUE,
-  #         
+  #
   #         #title = "Workflow",
   #         width = "100%",
   #         height = "100%"
   #         #collapsible = TRUE
   #       )
   #     ),
-  #    
+  #
   #    tabPanel(
   #      title = tagList(icon("cogs"), "Animation"),
-  #      
+  #
   #      box(
   #        shinycssloaders::withSpinner(processanimaterOutput("process", height = "750px")),
   #        width = "100%",
   #        height = "100%"
   #      )
   #    ),
-  #     
+  #
   #     tabPanel(
   #       title = tagList(icon("fingerprint"),
   #                       "Trace Id Usage"),
-  #       
+  #
   #       box(
   #         DT::dataTableOutput("traceID_aggr"),
   #         #status = "primary",
   #         solidHeader = TRUE,
-  #         
+  #
   #         width = "33%",
   #         height = "100%"
   #       ),
@@ -233,72 +233,76 @@ ui <- dashboardPage(
   #         plotOutput("traceId_plot", height = "400px"),
   #         #status = "primary",
   #         solidHeader = TRUE,
-  #         
+  #
   #         width = "33%",
   #         height = "100%"
   #       )
   #     ),
-  #     
+  #
   #     tabPanel(
   #       title = tagList(icon("table"), "Raw data"),
-  #       
+  #
   #       box(DT::dataTableOutput("RawData"),
   #           width = "100%")
   #     )
-  #     
-  #     
+  #
+  #
   #   )
   # )),
   
-  fluidRow(
-  mainPanel(width = 12,
-
-    tabsetPanel(type = "tabs",
-
-
-                tabPanel(title = "Workflow Visualization",
-                         icon = icon("project-diagram", class = "fas fa-project-diagram"),
-                         br(),
-                         shinycssloaders::withSpinner(processanimaterOutput(height = "850px", "process"))
-                         ),
-
-                tabPanel(title = "Trace ID Insights",
-                        icon = icon("fingerprint"),
-                        br(),
-                        fluidRow(
-                        box(
-                          width = 6,
-                          title = "Identify Hardcoded Trace IDs",
-                          status = "primary",
-                          solidHeader = TRUE,
-                          DT::dataTableOutput("traceID_aggr", height = 400),
-                          ),
-
-                        box(
-                          width = 6,
-                          title = "Trace ID usage per Request",
-                          status = "primary",
-                          solidHeader = TRUE,
-                          plotOutput("traceId_plot", height = 400),
-                          )
-
-                        )),
-
-                tabPanel(title = "Raw Data Table",
-                         icon = icon("table"),
-                         br(),
-                         DT::dataTableOutput("RawData")
-                         ),
-                
-                tabPanel(title = "Monitor",
-                         icon = icon("chart-line"),
-                         br(),
-                         valueBoxOutput("loopBox")
-                )
-     )
-  )
-)
-)
+  fluidRow(mainPanel(
+    width = 12,
+    
+    tabsetPanel(
+      type = "tabs",
+      
+      
+      tabPanel(
+        title = "Workflow Visualization",
+        icon = icon("project-diagram", class = "fas fa-project-diagram"),
+        br(),
+        shinycssloaders::withSpinner(processanimaterOutput(height = "850px", "process") , type = 1)
+      ),
+      
+      tabPanel(
+        title = "Trace ID Insights",
+        icon = icon("fingerprint"),
+        br(),
+        fluidRow(
+          box(
+            width = 6,
+            title = "Identify Hardcoded Trace IDs",
+            status = "primary",
+            solidHeader = TRUE,
+            DT::dataTableOutput("traceID_aggr", height = 400),
+          ),
+          
+          box(
+            width = 6,
+            title = "Trace ID usage per Request",
+            status = "primary",
+            solidHeader = TRUE,
+            plotOutput("traceId_plot", height = 400),
+          )
+          
+        )
+      ),
+      
+      tabPanel(
+        title = "Raw Data Table",
+        icon = icon("table"),
+        br(),
+        DT::dataTableOutput("RawData")
+      ),
+      
+      tabPanel(
+        title = "Monitor",
+        icon = icon("chart-line"),
+        br(),
+        valueBoxOutput("loopBox")
+      )
+    )
+  )))
 )
 
 
@@ -309,6 +313,8 @@ server <- function(input, output, session) {
   #filterHiveDate <- reactive({
   
   #})
+  
+  output$process <- NULL
   
   observeEvent(input$PLOT, {
     if (input$Agency_ID == "")
@@ -403,37 +409,46 @@ server <- function(input, output, session) {
       #  removeNotification(msgId)
       #  hivedata = fromJSON(rawToChar(res$content))
       
+      ##remove for non-hardcoded data from file
       hivedata <- read_csv("Workflow from Website.csv")
+      removeNotification(msgId)
+      ########
       
       ##check if return is empty content
       #if (rawToChar(res$content) != "[]")
       {
-          
         output$traceID_aggr = DT::renderDataTable({
-          
-          hivedataaggr <-  hivedata %>% 
-            group_by(traceid) %>% 
-            summarise(CountTrace =n()) %>% 
-            arrange(desc(CountTrace)) 
+          hivedataaggr <-  hivedata %>%
+            group_by(traceid) %>%
+            summarise(CountTrace = n()) %>%
+            arrange(desc(CountTrace))
           hivedataaggr
         })
         
         
         output$traceId_plot <-  renderPlot({
           totalReq <- nrow(hivedata)
-          hivedataplot <-  hivedata %>% group_by(request_type_desc) %>%
-            mutate(emptyTrace = ifelse( is.na(traceid), 1 , 0)) %>%
-            summarise(count_req =  n() , emptytracecount = sum(emptyTrace) , percUsage = (n() - sum(emptyTrace))/n() )
+          hivedataplot <-
+            hivedata %>% group_by(request_type_desc) %>%
+            mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
+            summarise(
+              count_req =  n() ,
+              emptytracecount = sum(emptyTrace) ,
+              percUsage = (n() - sum(emptyTrace)) / n()
+            )
           
-          ggplot(hivedataplot, aes(x=reorder(`request_type_desc` , percUsage*100), y = percUsage*100)) + 
-            geom_bar(stat='identity') +
+          ggplot(hivedataplot, aes(
+            x = reorder(`request_type_desc` , percUsage * 100),
+            y = percUsage * 100
+          )) +
+            geom_bar(stat = 'identity') +
             xlab('Request') +
             ylab('Number of Requests') +
             coord_flip()
         })
         
-        #hivedata <- hivedata %>% 
-        #  filter(!(is.na(traceid))) 
+        #hivedata <- hivedata %>%
+        #  filter(!(is.na(traceid)))
         
         hivedata$log_ts <-
           as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
@@ -466,8 +481,7 @@ server <- function(input, output, session) {
         
         
         output$Pr_map <- renderGrViz({
-          
-          hivedata <- hivedata %>% 
+          hivedata <- hivedata %>%
             filter(!(traceid %in% c("", " "))) %>%
             filter(!(is.na(traceid))) %>%
             filter(!(traceid  %in% input$ExclTraceIDs))
@@ -527,46 +541,51 @@ server <- function(input, output, session) {
     #}
     
     
-      output$process <- renderProcessanimater(expr = {
+    output$process <- renderProcessanimater(expr = {
+      #filtering top 5000 records for performance reasons
+      hivedataAnimate <- head(hivedata, 10000)
       
-        #filtering top 5000 records for performance reasons
-        hivedataAnimate <- head(hivedata, 10000)
+      eventloghive <-
+        hivedataAnimate %>% #a data.frame with the information in the table above
+        mutate(status = NA) %>%
+        mutate(lifecycle_id = NA) %>%
+        mutate(activity_instance = 1:nrow(.)) %>%
         
-        eventloghive <-  hivedataAnimate %>% #a data.frame with the information in the table above
-          mutate(status = NA) %>%
-          mutate(lifecycle_id = NA) %>%
-          mutate(activity_instance = 1:nrow(.)) %>%
-          
-          eventlog(
-            case_id = "traceid",
-            activity_id = "request_type_desc",
-            activity_instance_id = "activity_instance",
-            lifecycle_id = "lifecycle_id",
-            timestamp = "log_ts",
-            resource_id = "pseudo_city_code",
-            validate = FALSE
-          ) %>%
-          filter_activity_frequency(percentage = input$frequency)
-        
-        graph <-  process_map(eventloghive, render = F,  type = frequency("absolute"),
-                              sec_edges = performance(mean, "mins"),
-                              rankdir = "TB")
-        
-        model <- DiagrammeR::add_global_graph_attrs(
-            graph,
-            attr = "rankdir",
-            value = "TB",
-            attr_type = "graph"
-          )
-        
-        animate_process(eventloghive, model,
-                        mode = "relative",
-                        mapping = token_aes(color = token_scale("red")),
-                        duration = 20,
-                        initial_state = "paused",
-                        )
-        
-    
+        eventlog(
+          case_id = "traceid",
+          activity_id = "request_type_desc",
+          activity_instance_id = "activity_instance",
+          lifecycle_id = "lifecycle_id",
+          timestamp = "log_ts",
+          resource_id = "pseudo_city_code",
+          validate = FALSE
+        ) %>%
+        filter_activity_frequency(percentage = input$frequency)
+      
+      graph <-
+        process_map(
+          eventloghive,
+          render = F,
+          type = frequency("absolute"),
+          sec_edges = performance(mean, "mins"),
+          rankdir = "TB"
+        )
+      
+      model <- DiagrammeR::add_global_graph_attrs(graph,
+                                                  attr = "rankdir",
+                                                  value = "TB",
+                                                  attr_type = "graph")
+      
+      animate_process(
+        eventloghive,
+        model,
+        mode = "relative",
+        mapping = token_aes(color = token_scale("red")),
+        duration = 20,
+        initial_state = "paused",
+      )
+      
+      
     })
     
     
@@ -580,7 +599,10 @@ server <- function(input, output, session) {
     )
     
     output$loopBox <- renderValueBox({
-      valueBox(value = number_of_selfloops(eventlog), "Approval", icon = icon("thumbs-up", lib = "glyphicon"),
+      valueBox(
+        value = number_of_selfloops(eventlog),
+        "Approval",
+        icon = icon("thumbs-up", lib = "glyphicon"),
         color = "yellow"
       )
     })

@@ -241,10 +241,8 @@ ui <- dashboardPage(
 
 
 
-
-
 server <- function(input, output, session) {
-  #filterHiveDate <- reactive({
+  #filterHiveData <- reactive({
   
   #})
   

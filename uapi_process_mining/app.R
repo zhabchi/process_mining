@@ -242,9 +242,132 @@ ui <- dashboardPage(
 
 
 server <- function(input, output, session) {
-  #filterHiveData <- reactive({
   
-  #})
+  hivedata <- reactive({
+    fromDate <-
+      paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
+    toDate <-
+      paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")
+    
+    
+    url <-
+      "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
+    param1 <- "{\"agency\":\""
+    param2 <-  "\", \"txType\":\"\", \"startDate\":\""
+    param3 <-   " 00:00\", \"endDate\":\""
+    param4 <-   " 00:00\", \"successVal\":\"All\",
+                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
+                        \"rowLimit\":\"10000\",
+                        \"outputFormat\":\"json\",
+                        \"orderBy\":\"\",
+                        \"ascendDescend\":\"ASC\",
+                        \"author\":\"\","
+    
+    
+    
+    if (input$includeLFS == FALSE)
+      param5 <-
+      "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
+    
+    
+    if (input$PCC != "")
+    {
+      if (exists("param5"))
+      {
+        param5 <-
+          paste(param5 ,
+                ", pseudo_city_code equals ",
+                input$PCC,
+                "\"," ,
+                sep = "")
+      }
+      else
+        param5 <-
+          paste("\"restrictions\": \"pseudo_city_code equals ",
+                input$PCC,
+                "\",",
+                sep = "")
+    }
+    else if (exists("param5"))
+      param5 <- paste(param5 ,  "\"," , sep = "")
+    else
+      param5 <- ""
+    
+    param6 <-
+      "\"email\":\"stephanos.kykkotis@travelport.com\",
+                        \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}"
+    
+    jsonargs <-
+      paste(
+        param1,
+        input$Agency_ID,
+        param2,
+        fromDate ,
+        param3,
+        toDate,
+        param4,
+        param5,
+        param6,
+        sep = ""
+      )
+    #print(jsonargs)
+    parambody <- list(json = jsonargs)
+    ##
+    msgId <-
+      showNotification("Retreiving data from HIVE server." ,
+                       type = "message" ,
+                       duration = NULL)
+    
+    #res = POST(url, body =  parambody , encode = "form")
+    
+    
+    ##check response code
+    #if (res$status_code == 200)
+    #{
+    ##
+    #  removeNotification(msgId)
+    #  hivedata = fromJSON(rawToChar(res$content))
+    
+    ##remove for non-hardcoded data from file
+    removeNotification(msgId)
+    hivedata <- read_csv("Workflow from Website.csv")
+    ########
+    ##check if return is empty content
+    #if (rawToChar(res$content) != "[]")
+    {
+      hivedata$log_ts <-
+        as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+      
+      #filtering top 100000 records for performance reasons
+      hivedata <- head(hivedata, 100000)
+      hivedata <- hivedata %>%
+        filter(!(traceid %in% c("", " "))) %>%
+        filter(!(is.na(traceid))) %>%
+        filter(!(traceid  %in% input$ExclTraceIDs))
+      
+      if (input$PCC != "All")
+      {
+        hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
+      }
+      hivedata
+    }
+  })
+  eventloghive <- reactive({
+    hivedata() %>% #a data.frame with the information in the table above
+      mutate(status = NA) %>%
+      mutate(lifecycle_id = NA) %>%
+      mutate(activity_instance = 1:nrow(.)) %>%
+      eventlog(
+        case_id = "traceid",
+        activity_id = "request_type_desc",
+        activity_instance_id = "activity_instance",
+        lifecycle_id = "lifecycle_id",
+        timestamp = "log_ts",
+        resource_id = "pseudo_city_code",
+        validate = FALSE
+      ) %>%
+      filter_activity_frequency(percentage = input$frequency)
+  })
   
   output$process <- NULL
   
@@ -256,101 +379,11 @@ server <- function(input, output, session) {
     }
     else
     {
-      fromDate <-
-        paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
-      toDate <-
-        paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")
-      
-      
-      url <-
-        "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
-      param1 <- "{\"agency\":\""
-      param2 <-  "\", \"txType\":\"\", \"startDate\":\""
-      param3 <-   " 00:00\", \"endDate\":\""
-      param4 <-   " 00:00\", \"successVal\":\"All\",
-                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
-                        \"rowLimit\":\"10000\",
-                        \"outputFormat\":\"json\",
-                        \"orderBy\":\"\",
-                        \"ascendDescend\":\"ASC\",
-                        \"author\":\"\","
-      
-      
-      
-      if (input$includeLFS == FALSE)
-        param5 <-
-        "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
-      
-      
-      if (input$PCC != "")
-      {
-        if (exists("param5"))
-        {
-          param5 <-
-            paste(param5 ,
-                  ", pseudo_city_code equals ",
-                  input$PCC,
-                  "\"," ,
-                  sep = "")
-        }
-        else
-          param5 <-
-            paste("\"restrictions\": \"pseudo_city_code equals ",
-                  input$PCC,
-                  "\",",
-                  sep = "")
-      }
-      else if (exists("param5"))
-        param5 <- paste(param5 ,  "\"," , sep = "")
-      else
-        param5 <- ""
-      
-      param6 <-
-        "\"email\":\"stephanos.kykkotis@travelport.com\",
-                        \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}"
-      
-      jsonargs <-
-        paste(
-          param1,
-          input$Agency_ID,
-          param2,
-          fromDate ,
-          param3,
-          toDate,
-          param4,
-          param5,
-          param6,
-          sep = ""
-        )
-      #print(jsonargs)
-      parambody <- list(json = jsonargs)
-      
-      ##
-      msgId <-
-        showNotification("Retreiving data from HIVE server." ,
-                         type = "message" ,
-                         duration = NULL)
-      
-      #res = POST(url, body =  parambody , encode = "form")
-      
-      
-      ##check response code
-      #if (res$status_code == 200)
-      #{
-      ##
-      #  removeNotification(msgId)
-      #  hivedata = fromJSON(rawToChar(res$content))
-      
-      ##remove for non-hardcoded data from file
-      hivedata <- read_csv("Workflow from Website.csv")
-      removeNotification(msgId)
-      ########
-      
       ##check if return is empty content
       #if (rawToChar(res$content) != "[]")
       {
-        output$traceID_aggr = DT::renderDataTable({
-          hivedataaggr <-  hivedata %>%
+        output$traceID_aggr <- DT::renderDataTable({
+          hivedataaggr <-  hivedata() %>%
             group_by(traceid) %>%
             summarise(CountTrace = n()) %>%
             arrange(desc(CountTrace))
@@ -359,9 +392,9 @@ server <- function(input, output, session) {
         
         
         output$traceId_plot <-  renderPlot({
-          totalReq <- nrow(hivedata)
+          totalReq <- nrow(hivedata())
           hivedataplot <-
-            hivedata %>% group_by(request_type_desc) %>%
+            hivedata() %>% group_by(request_type_desc) %>%
             mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
             summarise(
               count_req =  n() ,
@@ -382,19 +415,15 @@ server <- function(input, output, session) {
         #hivedata <- hivedata %>%
         #  filter(!(is.na(traceid)))
         
-        hivedata$log_ts <-
-          as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+       
         
-        #filtering top 100000 records for performance reasons
-        hivedata <- head(hivedata, 100000)
-        
-        output$RawData = DT::renderDataTable({
-          hivedata
+        output$RawData <- DT::renderDataTable({
+          hivedata()
         })
         
         
         tempSlcted <- input$ExclTraceIDs
-        traceIds <- unique(hivedata$traceid)
+        traceIds <- unique(hivedata()$traceid)
         updateSelectInput(session,
                           "ExclTraceIDs",
                           choices = traceIds,
@@ -402,7 +431,7 @@ server <- function(input, output, session) {
         
         
         tempSlcted <- input$PCC
-        Pccs <- unique(hivedata$pseudo_city_code)
+        Pccs <- unique(hivedata()$pseudo_city_code)
         Pccs <- prepend(Pccs , "All")
         updateSelectInput(session,
                           "PCC",
@@ -413,15 +442,7 @@ server <- function(input, output, session) {
         
         
         output$Pr_map <- renderGrViz({
-          hivedata <- hivedata %>%
-            filter(!(traceid %in% c("", " "))) %>%
-            filter(!(is.na(traceid))) %>%
-            filter(!(traceid  %in% input$ExclTraceIDs))
-          
-          if (input$PCC != "All")
-          {
-            hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
-          }
+         
           
           if (nrow(hivedata) == 0) {
             showNotification("No data in Hive for the selected parameters." ,
@@ -431,22 +452,7 @@ server <- function(input, output, session) {
           else
           {
             pp <-
-              hivedata %>% #a data.frame with the information in the table above
-              mutate(status = NA) %>%
-              mutate(lifecycle_id = NA) %>%
-              mutate(activity_instance = 1:nrow(.)) %>%
-              
-              eventlog(
-                case_id = "traceid",
-                activity_id = "request_type_desc",
-                activity_instance_id = "activity_instance",
-                lifecycle_id = "lifecycle_id",
-                timestamp = "log_ts",
-                resource_id = "pseudo_city_code",
-                validate = FALSE
-              ) %>%
-              
-              filter_activity_frequency(percentage = input$frequency) %>%
+              eventloghive() %>%
               process_map(
                 type = frequency("absolute"),
                 sec_edges = performance(mean, "mins"),
@@ -474,29 +480,10 @@ server <- function(input, output, session) {
     
     
     output$process <- renderProcessanimater(expr = {
-      #filtering top 5000 records for performance reasons
-      hivedataAnimate <- head(hivedata, 10000)
-      
-      eventloghive <-
-        hivedataAnimate %>% #a data.frame with the information in the table above
-        mutate(status = NA) %>%
-        mutate(lifecycle_id = NA) %>%
-        mutate(activity_instance = 1:nrow(.)) %>%
-        
-        eventlog(
-          case_id = "traceid",
-          activity_id = "request_type_desc",
-          activity_instance_id = "activity_instance",
-          lifecycle_id = "lifecycle_id",
-          timestamp = "log_ts",
-          resource_id = "pseudo_city_code",
-          validate = FALSE
-        ) %>%
-        filter_activity_frequency(percentage = input$frequency)
       
       graph <-
         process_map(
-          eventloghive,
+          eventloghive(),
           render = F,
           type = frequency("absolute"),
           sec_edges = performance(mean, "mins"),
@@ -509,7 +496,7 @@ server <- function(input, output, session) {
                                                   attr_type = "graph")
       
       animate_process(
-        eventloghive,
+        eventloghive(),
         model,
         mode = "relative",
         mapping = token_aes(color = token_scale("red")),
@@ -526,32 +513,14 @@ server <- function(input, output, session) {
         paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
       },
       content = function(file) {
-        write.csv(hivedata , file)
+        write.csv(hivedata() , file)
       }
     )
     
 
     output$loopBox <- renderValueBox({
       
-      hivedataAnimate <- head(hivedata, 10000)
-      
-      eventloghive <-  hivedataAnimate %>% #a data.frame with the information in the table above
-        mutate(status = NA) %>%
-        mutate(lifecycle_id = NA) %>%
-        mutate(activity_instance = 1:nrow(.)) %>%
-        
-        eventlog(
-          case_id = "traceid",
-          activity_id = "request_type_desc",
-          activity_instance_id = "activity_instance",
-          lifecycle_id = "lifecycle_id",
-          timestamp = "log_ts",
-          resource_id = "pseudo_city_code",
-          validate = FALSE
-        ) %>%
-        filter_activity_frequency(percentage = input$frequency)
-      
-      SL <- number_of_selfloops(eventloghive)
+      SL <- number_of_selfloops(eventloghive())
       print(SL)
       
       valueBox(value = SL, "Approval", icon = icon("thumbs-up", lib = "glyphicon"))
@@ -566,22 +535,7 @@ server <- function(input, output, session) {
       },
       content = function(file) {
         graphExport <-
-          hivedata %>% #a data.frame with the information in the table above
-          mutate(status = NA) %>%
-          mutate(lifecycle_id = NA) %>%
-          mutate(activity_instance = 1:nrow(.)) %>%
-          
-          eventlog(
-            case_id = "traceid",
-            activity_id = "request_type_desc",
-            activity_instance_id = "activity_instance",
-            lifecycle_id = "lifecycle_id",
-            timestamp = "log_ts",
-            resource_id = "pseudo_city_code",
-            validate = FALSE
-          ) %>%
-          
-          filter_activity_frequency(percentage = input$frequency) %>%
+          eventloghive() %>%
           process_map(
             type = frequency("absolute"),
             sec_edges = performance(mean, "mins"),

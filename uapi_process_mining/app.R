@@ -580,7 +580,29 @@ server <- function(input, output, session) {
     )
     
     output$loopBox <- renderValueBox({
-      valueBox(value = number_of_selfloops(eventlog), "Approval", icon = icon("thumbs-up", lib = "glyphicon"),
+      
+      hivedataAnimate <- head(hivedata, 10000)
+      
+      eventloghive <-  hivedataAnimate %>% #a data.frame with the information in the table above
+        mutate(status = NA) %>%
+        mutate(lifecycle_id = NA) %>%
+        mutate(activity_instance = 1:nrow(.)) %>%
+        
+        eventlog(
+          case_id = "traceid",
+          activity_id = "request_type_desc",
+          activity_instance_id = "activity_instance",
+          lifecycle_id = "lifecycle_id",
+          timestamp = "log_ts",
+          resource_id = "pseudo_city_code",
+          validate = FALSE
+        ) %>%
+        filter_activity_frequency(percentage = input$frequency)
+      
+      SL <- number_of_selfloops(eventloghive)
+      print(SL)
+      
+      valueBox(value = SL, "Approval", icon = icon("thumbs-up", lib = "glyphicon"),
         color = "yellow"
       )
     })

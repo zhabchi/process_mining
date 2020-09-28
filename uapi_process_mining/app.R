@@ -330,7 +330,7 @@ server <- function(input, output, session) {
     
     ##remove for non-hardcoded data from file
     removeNotification(msgId)
-    hivedata <- read_csv("Workflow from Website.csv")
+    hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
     ########
     ##check if return is empty content
     #if (rawToChar(res$content) != "[]")
@@ -339,21 +339,22 @@ server <- function(input, output, session) {
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
       
       #filtering top 100000 records for performance reasons
-      hivedata <- head(hivedata, 100000)
+      hivedata <- head(hivedata, 30000)
       hivedata <- hivedata %>%
-        filter(!(traceid %in% c("", " "))) %>%
-        filter(!(is.na(traceid))) %>%
         filter(!(traceid  %in% input$ExclTraceIDs))
       
       if (input$PCC != "All")
       {
         hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
       }
+      
       hivedata
     }
   })
   eventloghive <- reactive({
     hivedata() %>% #a data.frame with the information in the table above
+      filter(!(traceid %in% c("", " "))) %>%
+      filter(!(is.na(traceid))) %>%
       mutate(status = NA) %>%
       mutate(lifecycle_id = NA) %>%
       mutate(activity_instance = 1:nrow(.)) %>%

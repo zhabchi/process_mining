@@ -17,10 +17,28 @@ library(rsvg)
 library(DT)
 library(ggplot2)
 library(edeaR)
+library(shinymanager)
 
 r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
 #AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
+
+# credentials <- data.frame(
+#   user = c("shiny", "shinymanager","stephanos.kykkotis"), # mandatory
+#   password = c("azerty", "12345","password"), # mandatory
+#   start = c("2019-04-15"), # optinal (all others)
+#   expire = c(NA, "2019-12-31", NA),
+#   admin = c(FALSE, TRUE, FALSE),
+#   comment = "Simple and secure authentification mechanism 
+#   for single ‘Shiny’ applications.",
+#   stringsAsFactors = FALSE
+# )
+
+
+set_labels(
+  language = "en",
+  "Please authenticate" = "Please log in"
+)
 
 ui <- dashboardPage(
   skin = "blue",
@@ -195,7 +213,7 @@ ui <- dashboardPage(
         title = "Workflow Visualization",
         icon = icon("project-diagram", class = "fas fa-project-diagram"),
         br(),
-        shinycssloaders::withSpinner(processanimaterOutput(height = "850px", "process") , type = 1)
+        shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process") , type = 1)
       ),
       
       tabPanel(
@@ -239,9 +257,16 @@ ui <- dashboardPage(
   )))
 )
 
-
+ui <- secure_app(ui, enable_admin = TRUE)
 
 server <- function(input, output, session) {
+
+
+  res_auth <- secure_server(
+    check_credentials = check_credentials("../database/users.sqlite",
+                    passphrase = "Travelport"
+        )
+  )
   
   hivedata <- reactive({
     fromDate <-
@@ -294,9 +319,9 @@ server <- function(input, output, session) {
       param5 <- ""
     
     param6 <-
-      "\"email\":\"stephanos.kykkotis@travelport.com\",
-                        \"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}"
+      paste("\"email\":", res_auth$user , "@travelport.com,\"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}" , sep ="")
     
+   
     jsonargs <-
       paste(
         param1,
@@ -310,7 +335,7 @@ server <- function(input, output, session) {
         param6,
         sep = ""
       )
-    #print(jsonargs)
+    print(jsonargs)
     parambody <- list(json = jsonargs)
     ##
     msgId <-
@@ -330,7 +355,7 @@ server <- function(input, output, session) {
     
     ##remove for non-hardcoded data from file
     removeNotification(msgId)
-    hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+    hivedata <- read_csv("Workflow from Website.csv")
     ########
     ##check if return is empty content
     #if (rawToChar(res$content) != "[]")
@@ -351,6 +376,7 @@ server <- function(input, output, session) {
       hivedata
     }
   })
+  
   eventloghive <- reactive({
     hivedata() %>% #a data.frame with the information in the table above
       filter(!(traceid %in% c("", " "))) %>%

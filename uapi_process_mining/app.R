@@ -151,7 +151,7 @@ ui <- dashboardPage(
         "Frequency",
         min = 0.1,
         max = 1,
-        value = 0.1,
+        value = 0.4,
         step = 0.01,
         width = "100%"
         
@@ -319,7 +319,7 @@ server <- function(input, output, session) {
       param5 <- ""
     
     param6 <-
-      paste("\"email\":", res_auth$user , "@travelport.com,\"password\":\"e4992f9e0b0d130fa5b71456810f441c02de99b779a2d18db19f21290a25cff1\"}" , sep ="")
+      paste("\"userAuth\":\"", res_auth$user , "\", \"email\": \"api_user@donotreply.travelport.com\",\"password\":\"4293ea3b8517c015c542643439b26fe46a694baf9f2598dbd196fd98aac0cdaa\"}" , sep ="")
     
    
     jsonargs <-

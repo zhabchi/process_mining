@@ -23,17 +23,7 @@ r <- GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1")
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
 #AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
 
-# credentials <- data.frame(
-#   user = c("shiny", "shinymanager","stephanos.kykkotis"), # mandatory
-#   password = c("azerty", "12345","password"), # mandatory
-#   start = c("2019-04-15"), # optinal (all others)
-#   expire = c(NA, "2019-12-31", NA),
-#   admin = c(FALSE, TRUE, FALSE),
-#   comment = "Simple and secure authentification mechanism 
-#   for single ‘Shiny’ applications.",
-#   stringsAsFactors = FALSE
-# )
-
+isDebug <- TRUE
 
 set_labels(
   language = "en",
@@ -343,28 +333,13 @@ server <- function(input, output, session) {
                        type = "message" ,
                        duration = NULL)
     
-    #res = POST(url, body =  parambody , encode = "form")
-    
-    
-    ##check response code
-    #if (res$status_code == 200)
-    #{
-    ##
-    #  removeNotification(msgId)
-    #  hivedata = fromJSON(rawToChar(res$content))
-    
-    ##remove for non-hardcoded data from file
-    removeNotification(msgId)
-    hivedata <- read_csv("Workflow from Website.csv")
-    ########
-    ##check if return is empty content
-    #if (rawToChar(res$content) != "[]")
+    if(isDebug)
     {
+      removeNotification(msgId)
+      hivedata <- read_csv("Workflow from Website.csv")
       hivedata$log_ts <-
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
       
-      #filtering top 100000 records for performance reasons
-      hivedata <- head(hivedata, 30000)
       hivedata <- hivedata %>%
         filter(!(traceid  %in% input$ExclTraceIDs))
       
@@ -375,25 +350,77 @@ server <- function(input, output, session) {
       
       hivedata
     }
+    else if(!isDebug)
+    {
+      res = POST(url, body =  parambody , encode = "form")
+
+
+      ##check response code
+      if (res$status_code == 200)
+      {
+        ##
+        removeNotification(msgId)
+        hivedata = fromJSON(rawToChar(res$content))
+        
+        ##check if return is empty content
+        if (rawToChar(res$content) != "[]")
+        {
+          hivedata$log_ts <-
+            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+          
+          #filtering top 100000 records for performance reasons
+          hivedata <- head(hivedata, 30000)
+          hivedata <- hivedata %>%
+            filter(!(traceid  %in% input$ExclTraceIDs))
+          
+          if (input$PCC != "All")
+          {
+            hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
+          }
+          
+          hivedata
+        }
+        else
+        {
+          removeNotification(msgId)
+          msgId <-
+            showNotification("No data returned for selected Agency." ,  type = "warning")
+          NULL
+        }
+      }
+      else
+      {
+        removeNotification(msgId)
+        msgId <-
+          showNotification("Error connecting to HIVE server." ,  type = "error")
+        NULL
+      }
+    }
   })
   
   eventloghive <- reactive({
-    hivedata() %>% #a data.frame with the information in the table above
-      filter(!(traceid %in% c("", " "))) %>%
-      filter(!(is.na(traceid))) %>%
-      mutate(status = NA) %>%
-      mutate(lifecycle_id = NA) %>%
-      mutate(activity_instance = 1:nrow(.)) %>%
-      eventlog(
-        case_id = "traceid",
-        activity_id = "request_type_desc",
-        activity_instance_id = "activity_instance",
-        lifecycle_id = "lifecycle_id",
-        timestamp = "log_ts",
-        resource_id = "pseudo_city_code",
-        validate = FALSE
-      ) %>%
-      filter_activity_frequency(percentage = input$frequency)
+    data <- hivedata()
+
+    if(!is.null(data)){
+      data %>% #a data.frame with the information in the table above
+        filter(!(traceid %in% c("", " "))) %>%
+        filter(!(is.na(traceid))) %>%
+        mutate(status = NA) %>%
+        mutate(lifecycle_id = NA) %>%
+        mutate(activity_instance = 1:nrow(.)) %>%
+        eventlog(
+          case_id = "traceid",
+          activity_id = "request_type_desc",
+          activity_instance_id = "activity_instance",
+          lifecycle_id = "lifecycle_id",
+          timestamp = "log_ts",
+          resource_id = "pseudo_city_code",
+          validate = FALSE
+        ) %>%
+        filter_activity_frequency(percentage = input$frequency)
+    }
+    else 
+      NULL
   })
   
   output$process <- NULL
@@ -406,43 +433,46 @@ server <- function(input, output, session) {
     }
     else
     {
-      ##check if return is empty content
-      #if (rawToChar(res$content) != "[]")
-      {
         output$traceID_aggr <- DT::renderDataTable({
-          hivedataaggr <-  hivedata() %>%
+          data <- hivedata()
+          if(!is.null(data))
+          {
+            hivedataaggr <-  data %>%
             group_by(traceid) %>%
             summarise(CountTrace = n()) %>%
             arrange(desc(CountTrace))
-          hivedataaggr
+             hivedataaggr
+          }
+          else
+            NULL
         })
         
         
         output$traceId_plot <-  renderPlot({
-          totalReq <- nrow(hivedata())
-          hivedataplot <-
-            hivedata() %>% group_by(request_type_desc) %>%
-            mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
-            summarise(
-              count_req =  n() ,
-              emptytracecount = sum(emptyTrace) ,
-              percUsage = (n() - sum(emptyTrace)) / n()
-            )
-          
-          ggplot(hivedataplot, aes(
-            x = reorder(`request_type_desc` , percUsage * 100),
-            y = percUsage * 100
-          )) +
-            geom_bar(stat = 'identity') +
-            xlab('Request') +
-            ylab('Number of Requests') +
-            coord_flip()
+          data <- hivedata()
+          if(!is.null(data))
+          {
+            totalReq <- nrow(hivedata())
+            hivedataplot <-
+              hivedata() %>% group_by(request_type_desc) %>%
+              mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
+              summarise(
+                count_req =  n() ,
+                emptytracecount = sum(emptyTrace) ,
+                percUsage = (n() - sum(emptyTrace)) / n()
+              )
+            
+            ggplot(hivedataplot, aes(
+              x = reorder(`request_type_desc` , percUsage * 100),
+              y = percUsage * 100
+            )) +
+              geom_bar(stat = 'identity') +
+              xlab('Request') +
+              ylab('Number of Requests') +
+              coord_flip()
+          }
         })
         
-        #hivedata <- hivedata %>%
-        #  filter(!(is.na(traceid)))
-        
-       
         
         output$RawData <- DT::renderDataTable({
           hivedata()
@@ -489,53 +519,41 @@ server <- function(input, output, session) {
               )
           }
         })
-        
-        
-      }
-      #else {
-      #  removeNotification(msgId)
-      #  msgId <-
-      #    showNotification("No data returned for selected Agency." ,  type = "warning")
-      #}
     }
-    
-    #  else
-    #  {
-    #    removeNotification(msgId)
-    #    msgId <-
-    #      showNotification("Error connecting to HIVE server." ,  type = "error")
-    #  }
-    #}
-    
     
     output$process <- renderProcessanimater(expr = {
       
-      graph <-
-        process_map(
-          eventloghive(),
-          render = F,
-          type = frequency("absolute"),
-          sec_edges = performance(mean, "mins"),
-          rankdir = "TB"
+      loghiv <- eventloghive()
+      if(!is.null(loghiv))
+      {
+        graph <-
+          process_map(
+            loghiv,
+            render = F,
+            type = frequency("absolute"),
+            sec_edges = performance(mean, "mins"),
+            rankdir = "TB"
+          )
+        
+        model <- DiagrammeR::add_global_graph_attrs(graph,
+                                                    attr = "rankdir",
+                                                    value = "TB",
+                                                    attr_type = "graph")
+        
+        animate_process(
+          loghiv,
+          model,
+          mode = "relative",
+          mapping = token_aes(color = token_scale("red")),
+          duration = 20,
+          initial_state = "paused"
         )
-      
-      model <- DiagrammeR::add_global_graph_attrs(graph,
-                                                  attr = "rankdir",
-                                                  value = "TB",
-                                                  attr_type = "graph")
-      
-      animate_process(
-        eventloghive(),
-        model,
-        mode = "relative",
-        mapping = token_aes(color = token_scale("red")),
-        duration = 20,
-        initial_state = "paused"
-      )
+      }
+      else 
+        NULL
       
       
     })
-    
     
     output$downloadRawData <- downloadHandler(
       filename = function() {
@@ -546,7 +564,6 @@ server <- function(input, output, session) {
       }
     )
     
-
     output$loopBox <- renderValueBox({
       
       SL <- number_of_selfloops(eventloghive())

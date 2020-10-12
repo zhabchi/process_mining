@@ -451,6 +451,8 @@ server <- function(input, output, session) {
         
         tempSlcted <- input$ExclTraceIDs
         traceIds <- unique(hivedata()$traceid)
+        traceIds <- traceIds[!is.na(traceIds)] #remove NA
+        
         updateSelectInput(session,
                           "ExclTraceIDs",
                           choices = traceIds,

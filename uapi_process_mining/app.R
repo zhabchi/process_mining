@@ -347,8 +347,8 @@ server <- function(input, output, session) {
     if (isDebug)
     {
       removeNotification(msgId)
-      #hivedata <- read_csv("Workflow from Website.csv")
-      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+      hivedata <- read_csv("Workflow from Website.csv")
+      #hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
       hivedata$log_ts <-
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
       
@@ -382,24 +382,6 @@ server <- function(input, output, session) {
           
           #filtering top x records for performance reasons
           hivedata <- head(hivedata, 30000)
-          
-          #update the dropdown list of trace ID
-          tempSlcted <- input$ExclTraceIDs
-          traceIds <- unique(hivedata()$traceid)
-          traceIds <- traceIds[!is.na(traceIds)] #remove NA
-          updateSelectInput(session,
-                            "ExclTraceIDs",
-                            choices = traceIds,
-                            selected = tempSlcted)
-          
-          #update the dropdown list of PCC
-          tempSlcted <- input$PCC
-          Pccs <- unique(hivedata()$pseudo_city_code)
-          Pccs <- prepend(Pccs , "All")
-          updateSelectInput(session,
-                            "PCC",
-                            choices = Pccs,
-                            selected = tempSlcted)
 
           hivedata
         }
@@ -472,6 +454,24 @@ server <- function(input, output, session) {
     }
     else
     {
+      #update the dropdown list of trace ID
+      tempSlcted <- input$ExclTraceIDs
+      traceIds <- unique(hivedata()$traceid)
+      traceIds <- traceIds[!is.na(traceIds)] #remove NA
+      updateSelectInput(session,
+                        "ExclTraceIDs",
+                        choices = traceIds,
+                        selected = tempSlcted)
+      
+      #update the dropdown list of PCC
+      tempSlcted <- input$PCC
+      Pccs <- unique(hivedata()$pseudo_city_code)
+      Pccs <- prepend(Pccs , "All")
+      updateSelectInput(session,
+                        "PCC",
+                        choices = Pccs,
+                        selected = tempSlcted)
+
       #display the usage of traceid
       output$traceID_aggr <- DT::renderDataTable({
         data <- hivedata()

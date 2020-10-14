@@ -338,20 +338,20 @@ server <- function(input, output, session) {
     #print(jsonargs)
     parambody <- list(json = jsonargs)
     ##
-    msgId <-
-      showNotification("Retreiving data from HIVE server." ,
-                       type = "message" ,
-                       duration = NULL)
+   
     
     #section will load data from file
     if (isDebug)
     {
-      removeNotification(msgId)
-      hivedata <- read_csv("Workflow from Website.csv")
-      #hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+       msgId <-
+      showNotification("Loading data from file." ,
+                       type = "message" ,
+                       duration = NULL)
+      #hivedata <- read_csv("Workflow from Website.csv")
+      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
       hivedata$log_ts <-
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-      
+      removeNotification(msgId)
       hivedata <- hivedata %>%
         filter(!(traceid  %in% input$ExclTraceIDs))
       
@@ -362,9 +362,13 @@ server <- function(input, output, session) {
       
       hivedata
     }
-    else if (!isDebug)
-      #call hive API for data
+    else if (!isDebug) #call hive API for data
     {
+       msgId <-
+      showNotification("Retreiving data from HIVE server." ,
+                       type = "message" ,
+                       duration = NULL)
+
       res = POST(url, body =  parambody , encode = "form")      
       
       ##check response code

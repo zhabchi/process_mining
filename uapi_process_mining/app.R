@@ -262,10 +262,10 @@ server <- function(input, output, session) {
                                                                   passphrase = "Travelport"))
   
   hivedata <- reactive({
-    fromDate <-
-      paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
-    toDate <-
-      paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")
+    fromDate <- isolate({
+      paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")})
+    toDate <- isolate({
+      paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")})
     
     
     url <-
@@ -322,7 +322,7 @@ server <- function(input, output, session) {
       )
     
     
-    jsonargs <-
+    jsonargs <-  isolate({
       paste(
         param1,
         input$Agency_ID,
@@ -334,7 +334,7 @@ server <- function(input, output, session) {
         param5,
         param6,
         sep = ""
-      )
+      )})
     #print(jsonargs)
     parambody <- list(json = jsonargs)
     ##

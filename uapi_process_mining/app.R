@@ -360,6 +360,9 @@ server <- function(input, output, session) {
         hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
       }
       
+      #filtering top x records for performance reasons
+      hivedata <- head(hivedata, 30000)
+      
       hivedata
     }
     else if (!isDebug) #call hive API for data

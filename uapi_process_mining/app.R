@@ -347,7 +347,8 @@ server <- function(input, output, session) {
     if (isDebug)
     {
       removeNotification(msgId)
-      hivedata <- read_csv("Workflow from Website.csv")
+      #hivedata <- read_csv("Workflow from Website.csv")
+      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
       hivedata$log_ts <-
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
       
@@ -364,8 +365,7 @@ server <- function(input, output, session) {
     else if (!isDebug)
       #call hive API for data
     {
-      res = POST(url, body =  parambody , encode = "form")
-      
+      res = POST(url, body =  parambody , encode = "form")      
       
       ##check response code
       if (res$status_code == 200)
@@ -383,16 +383,24 @@ server <- function(input, output, session) {
           #filtering top x records for performance reasons
           hivedata <- head(hivedata, 30000)
           
-          #filtering out excluded trace ids
-          hivedata <- hivedata %>%
-            filter(!(traceid  %in% input$ExclTraceIDs))
+          #update the dropdown list of trace ID
+          tempSlcted <- input$ExclTraceIDs
+          traceIds <- unique(hivedata()$traceid)
+          traceIds <- traceIds[!is.na(traceIds)] #remove NA
+          updateSelectInput(session,
+                            "ExclTraceIDs",
+                            choices = traceIds,
+                            selected = tempSlcted)
           
-          #filtering out exculded PCCs
-          if (input$PCC != "All")
-          {
-            hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
-          }
-          
+          #update the dropdown list of PCC
+          tempSlcted <- input$PCC
+          Pccs <- unique(hivedata()$pseudo_city_code)
+          Pccs <- prepend(Pccs , "All")
+          updateSelectInput(session,
+                            "PCC",
+                            choices = Pccs,
+                            selected = tempSlcted)
+
           hivedata
         }
         else
@@ -418,11 +426,24 @@ server <- function(input, output, session) {
   #generate even log using eventlog function
   eventloghive <- reactive({
     data <- hivedata()
-    
-    if (!is.null(data)) {
-      data %>% #a data.frame with the information in the table above
+
+    #filtering out excluded trace ids
+    data <- data %>%
+      filter(!(traceid  %in% input$ExclTraceIDs))
+          
+    #filtering out exculded PCCs
+    if (input$PCC != "All")
+    {
+      data <- data  %>%  filter(pseudo_city_code == input$PCC)
+    }
+
+    data <- data %>% #a data.frame with the information in the table above
         filter(!(traceid %in% c("", " "))) %>%
-        filter(!(is.na(traceid))) %>%
+        filter(!(is.na(traceid)))
+   
+    if ((!is.null(data)) && (nrow(data) > 0)) 
+    {
+      data %>% #a data.frame with the information in the table above        
         mutate(status = NA) %>%
         mutate(lifecycle_id = NA) %>%
         mutate(activity_instance = 1:nrow(.)) %>%
@@ -497,27 +518,6 @@ server <- function(input, output, session) {
         hivedata()
       })
       
-      #update the dropdown list of trace ID
-      tempSlcted <- input$ExclTraceIDs
-      traceIds <- unique(hivedata()$traceid)
-      traceIds <- traceIds[!is.na(traceIds)] #remove NA
-      updateSelectInput(session,
-                        "ExclTraceIDs",
-                        choices = traceIds,
-                        selected = tempSlcted)
-      
-      #update the dropdown list of PCC
-      tempSlcted <- input$PCC
-      Pccs <- unique(hivedata()$pseudo_city_code)
-      Pccs <- prepend(Pccs , "All")
-      updateSelectInput(session,
-                        "PCC",
-                        choices = Pccs,
-                        selected = tempSlcted)
-      
-      
-      
-      
       #output$Pr_map <- renderGrViz({
       
       
@@ -540,6 +540,7 @@ server <- function(input, output, session) {
       
       output$process <- renderProcessanimater(expr = {
         loghiv <- eventloghive()
+       
         if (!is.null(loghiv))
         {
           graph <-

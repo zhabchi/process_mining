@@ -279,7 +279,7 @@ server <- function(input, output, session) {
                         \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
                         \"rowLimit\":\"30000\",
                         \"outputFormat\":\"json\",
-                        \"orderBy\":\"\",
+                        \"orderBy\":\"log_ts\",
                         \"ascendDescend\":\"ASC\",
                         \"author\":\"\","
     
@@ -335,7 +335,7 @@ server <- function(input, output, session) {
         param6,
         sep = ""
       )})
-    #print(jsonargs)
+    print(jsonargs)
     parambody <- list(json = jsonargs)
     ##
    

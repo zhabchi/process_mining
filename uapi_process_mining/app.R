@@ -215,7 +215,7 @@ ui <- dashboardPage(
       #workflow animation
       tabPanel(
         title = "Workflow Animation",
-        icon = icon("project-diagram", class = "fas fa-spinner fa-spin"),
+        icon = icon("project-diagram", class = "fas fa-sync-alt fa-spin"),
         br(),
         shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process") , type = 1)
       ),
@@ -249,14 +249,14 @@ ui <- dashboardPage(
         icon = icon("table"),
         br(),
         DT::dataTableOutput("RawData")
-      ),
+      )#,
       
-      tabPanel(
-        title = "Monitor",
-        icon = icon("chart-line"),
-        br(),
-        valueBoxOutput("loopBox")
-      )
+      #tabPanel(
+      #  title = "Monitor",
+      #  icon = icon("chart-line"),
+      #  br(),
+      #  valueBoxOutput("loopBox")
+      #)
     )
   )))
 )
@@ -595,15 +595,15 @@ server <- function(input, output, session) {
         }
       )
       
-      output$loopBox <- renderValueBox({
-        SL <- number_of_selfloops(eventloghive())
-        print(SL)
-        valueBox(
-          value = SL,
-          "Approval",
-          icon = icon("thumbs-up", lib = "glyphicon")
-        )
-      })
+      #output$loopBox <- renderValueBox({
+      #  SL <- number_of_selfloops(eventloghive())
+      #  print(SL)
+      #  valueBox(
+      #    value = SL,
+      #    "Approval",
+      #    icon = icon("thumbs-up", lib = "glyphicon")
+      #  )
+      #})
       
       output$downloadProcessMap <- downloadHandler(
         filename = function() {

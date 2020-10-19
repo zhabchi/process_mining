@@ -34,7 +34,7 @@ set_labels(#set the label for login screen in shinymanager lib
 ui <- dashboardPage(
   skin = "blue",
   
-  dashboardHeader(title = "uAPI Workflow Analysis",
+  dashboardHeader(title = "uAPI Workflow Analysis Tool",
                   titleWidth = 350),
   
   
@@ -45,7 +45,7 @@ ui <- dashboardPage(
     fluidRow(column(12, div(
       selectInput(
         "Agency_ID",
-        label = "Agency",
+        label = "Agency*",
         choices = c(unique(as.character(Agencies$name))),
         width = '100%',
         multiple = FALSE
@@ -173,8 +173,7 @@ ui <- dashboardPage(
         style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
       )
       
-    )),
-    
+    )), 
     
     fluidRow(column(12, div(style = "padding:15px", strong(
       em(
@@ -209,7 +208,9 @@ ui <- dashboardPage(
         title = "Workflow Visualization",
         icon = icon("project-diagram", class = "fas fa-project-diagram"),
         br(),
-        grVizOutput("Pr_map", height = "800px")
+        fluidRow(  grVizOutput("Pr_map", height = "800px") ),
+        fluidRow( infoBoxOutput("TimeStamp"), 
+                  infoBoxOutput("Records") )
       ),
 
       #workflow animation
@@ -551,6 +552,29 @@ server <- function(input, output, session) {
             )
         }
       })
+      
+      output$TimeStamp <- renderInfoBox({
+        data <- hivedata()
+        if(!is.null(data)){
+        last_ts <-  max(data$log_ts)
+          infoBox(
+            "Last Record Timestamp", paste0(last_ts), icon = icon("calendar"),
+            color = "blue", fill = TRUE
+          )
+        }
+        })
+      
+      output$Records <- renderInfoBox({
+        data <- hivedata()
+        if(!is.null(data)){
+          records <-  nrow(data)
+          infoBox(
+            "Number of Records", paste0(records), icon = icon("list"),
+            color = "blue", fill = TRUE
+          )
+        }
+      })
+      
       
       output$process <- renderProcessanimater(expr = {
         loghiv <- eventloghive()

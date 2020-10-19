@@ -25,7 +25,7 @@ Agencies <-  fromJSON(fromJSON(content(r, "text")))
 #AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
 
 isDebug <-
-  TRUE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
+  FALSE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
 
 set_labels(#set the label for login screen in shinymanager lib
   language = "en",
@@ -290,7 +290,7 @@ server <- function(input, output, session) {
       "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
     
     
-    if (input$PCC != "")
+    if (input$PCC != "All")
     {
       if (exists("param5"))
       {
@@ -416,19 +416,22 @@ server <- function(input, output, session) {
   eventloghive <- reactive({
     data <- hivedata()
 
-    #filtering out excluded trace ids
-    data <- data %>%
-      filter(!(traceid  %in% input$ExclTraceIDs))
-          
-    #filtering out exculded PCCs
-    if (input$PCC != "All")
+    if ((!is.null(data)) && (nrow(data) > 0)) #check initial data is exist
     {
-      data <- data  %>%  filter(pseudo_city_code == input$PCC)
+      #filtering out excluded trace ids
+      data <- data %>%
+        filter(!(traceid  %in% input$ExclTraceIDs))
+            
+      #filtering out exculded PCCs
+      if (input$PCC != "All")
+      {
+        data <- data  %>%  filter(pseudo_city_code == input$PCC)
+      }
+  
+      data <- data %>% #a data.frame with the information in the table above
+          filter(!(traceid %in% c("", " "))) %>%
+          filter(!(is.na(traceid)))
     }
-
-    data <- data %>% #a data.frame with the information in the table above
-        filter(!(traceid %in% c("", " "))) %>%
-        filter(!(is.na(traceid)))
    
     if ((!is.null(data)) && (nrow(data) > 0)) 
     {

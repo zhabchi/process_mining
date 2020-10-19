@@ -25,7 +25,7 @@ Agencies <-  fromJSON(fromJSON(content(r, "text")))
 #AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
 
 isDebug <-
-  FALSE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
+  TRUE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
 
 set_labels(#set the label for login screen in shinymanager lib
   language = "en",
@@ -204,10 +204,18 @@ ui <- dashboardPage(
     tabsetPanel(
       type = "tabs",
       
-      #workflow animation
+      #workflow static Map
       tabPanel(
         title = "Workflow Visualization",
         icon = icon("project-diagram", class = "fas fa-project-diagram"),
+        br(),
+        grVizOutput("Pr_map", height = "800px")
+      ),
+
+      #workflow animation
+      tabPanel(
+        title = "Workflow Animation",
+        icon = icon("project-diagram", class = "fas fa-spinner fa-spin"),
         br(),
         shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process") , type = 1)
       ),
@@ -455,7 +463,8 @@ server <- function(input, output, session) {
   })
   
   output$process <- NULL
-  
+  output$Pr_map <- NULL
+
   observeEvent(input$PLOT, {
     if (input$Agency_ID == "")
     {
@@ -528,25 +537,20 @@ server <- function(input, output, session) {
         hivedata()
       })
       
-      #output$Pr_map <- renderGrViz({
+      output$Pr_map <- renderGrViz({
+        loghiv <- eventloghive()
       
-      
-      #if (nrow(hivedata) == 0) {
-      #  showNotification("No data in Hive for the selected parameters." ,
-      #                   type = "warning")
-      #  pp <- NULL
-      #}
-      #else
-      #{
-      #  pp <-
-      #    eventloghive() %>%
-      #    process_map(
-      #      type = frequency("absolute"),
-      #      sec_edges = performance(mean, "mins"),
-      #      rankdir = "TB"
-      #    )
-      #}
-      #})
+        if (!is.null(loghiv))
+        {
+          pp <-
+            loghiv %>%
+            process_map(
+              type = frequency("absolute"),
+              sec_edges = performance(mean, "mins"),
+              rankdir = "TB"
+            )
+        }
+      })
       
       output$process <- renderProcessanimater(expr = {
         loghiv <- eventloghive()

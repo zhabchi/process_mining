@@ -208,9 +208,10 @@ ui <- dashboardPage(
         title = "Workflow Visualization",
         icon = icon("project-diagram", class = "fas fa-project-diagram"),
         br(),
-        fluidRow(  grVizOutput("Pr_map", height = "800px") ),
-        fluidRow( infoBoxOutput("TimeStamp"), 
-                  infoBoxOutput("Records") )
+        fluidRow( column(10 , grVizOutput("Pr_map", height = "800px") ),
+                  column(2 , 
+                                 fluidRow(infoBoxOutput("TimeStamp")),
+                                 fluidRow(infoBoxOutput("Records"))))
       ),
 
       #workflow animation
@@ -557,9 +558,10 @@ server <- function(input, output, session) {
         data <- hivedata()
         if(!is.null(data)){
         last_ts <-  max(data$log_ts)
+        last_ts <- format(last_ts, format="%H:%M:%S")
           infoBox(
             "Last Record Timestamp", paste0(last_ts), icon = icon("calendar"),
-            color = "blue", fill = TRUE
+            color = "blue", fill = FALSE
           )
         }
         })
@@ -570,7 +572,7 @@ server <- function(input, output, session) {
           records <-  nrow(data)
           infoBox(
             "Number of Records", paste0(records), icon = icon("list"),
-            color = "blue", fill = TRUE
+            color = "purple", fill = FALSE
           )
         }
       })

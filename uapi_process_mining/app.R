@@ -127,9 +127,10 @@ ui <- dashboardPage(
                                    style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
                                  )
                                  
-                               )),
+                               ))),
                          
-                         menuSubItem("Filters", tabName = "ui", icon = icon("angle-right")),
+                      menuItem("Filters",  icon = icon("file-text-o"),
+                         menuSubItem(text = ""),
                          
                                fluidRow(column(12, div(
                                  selectInput(

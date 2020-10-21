@@ -41,145 +41,155 @@ ui <- dashboardPage(
   dashboardSidebar(
     width = 350,
     
-    #Dropdown for Agencies, data loaded from API
-    fluidRow(column(12, div(
-      selectInput(
-        "Agency_ID",
-        label = "Agency*",
-        choices = c(unique(as.character(Agencies$name))),
-        width = '100%',
-        multiple = FALSE
-      )
-    ))),
-    
-    fluidRow(column(12, div(style = "height:10px"))),
-    
-    #Filter PCC dropdown
-    fluidRow(column(12, div(
-      selectInput(
-        "PCC",
-        label = "PCC",
-        choices = "All",
-        width = '100%',
-        multiple = F
-      )
-    ))),
-    
-    fluidRow(column(12, div(style = "height:10px"))),
-    
-    #Checkbox to Exclude LFS requests
-    fluidRow(column(12, div(
-      checkboxInput(
-        "includeLFS",
-        label = "Include Shop Requests",
-        value = FALSE,
-        width = "100%"
-      )
-    ))),
-    
-    fluidRow(column(12, div(style = "height:10px"))),
-    
-    #Data Selection
-    fluidRow(column(12, div(
-      dateInput(
-        inputId = "Date",
-        label = 'Date',
-        width = "100%"
-      )
-    ))),
-    
-    #Time Selection
-    fluidRow(column(12, div(
-      column(
-        6,
-        align = "center",
-        timeInput(
-          "FromTime",
-          "From Time",
-          value = strptime("00:00", "%R"),
-          seconds = FALSE
-        )
-      ),
-      column(
-        6,
-        align = "center",
-        timeInput(
-          "ToTime",
-          "To Time",
-          value =  strptime("23:59", "%R"),
-          seconds = FALSE
-        )
-      )
-    ))),
-    
-    
-    fluidRow(column(
-      12,
-      align = "center",
-      actionButton(
-        inputId = "PLOT",
-        label = "PLOT",
-        width = "40%",
-        height = "40%",
-        style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-      )
-      
-    )),
-    
-    fluidRow(column(12, div(
-      selectInput(
-        "ExclTraceIDs",
-        label = "Excluded Trace IDs",
-        choices = NULL,
-        width = '100%',
-        multiple = TRUE
-      )
-    ))),
-    
-    
-    fluidRow(column(12, div(style = "height:50px"))),
-    
-    
-    fluidRow(column(12, div(
-      sliderInput(
-        "frequency",
-        "Frequency",
-        min = 0.1,
-        max = 1,
-        value = 0.4,
-        step = 0.01,
-        width = "100%"
-        
-      )
-    ))),
-    
-    
-    
-    fluidRow(column(
-      12,
-      align = "center",
-      downloadButton(
-        outputId = "downloadProcessMap",
-        label = "Download Map",
-        width = "40%",
-        height = "40%",
-        style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-      ),
-      downloadButton(
-        outputId = "downloadRawData",
-        label = "Download Data",
-        width = "40%",
-        height = "40%",
-        style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-      )
-      
-    )), 
-    
-    fluidRow(column(12, div(style = "padding:15px", strong(
-      em(
-        "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Techonlgy Optimization and Bookability teams - Dubai, UAE."
-      )
-    ))))
+    sidebarMenu(id="tabs",
+                menuItem("Report Parameters",  icon = icon("file-text-o"),
+                         menuSubItem("Request Data", tabName = "global", icon = icon("angle-right")),
+                         
+                               #Dropdown for Agencies, data loaded from API
+                               fluidRow(column(12, div(
+                                 selectInput(
+                                   "Agency_ID",
+                                   label = "Agency*",
+                                   choices = c(unique(as.character(Agencies$name))),
+                                   width = '100%',
+                                   multiple = FALSE
+                                 )
+                               ))),
+                               fluidRow(column(12, div(style = "height:10px"))),
+                               
+                               #Filter PCC dropdown
+                               fluidRow(column(12, div(
+                                 selectInput(
+                                   "PCC",
+                                   label = "PCC",
+                                   choices = "All",
+                                   width = '100%',
+                                   multiple = F
+                                 )
+                               ))),
+                               
+                               fluidRow(column(12, div(style = "height:10px"))),
+                               
+                               #Checkbox to Exclude LFS requests
+                               fluidRow(column(12, div(
+                                 checkboxInput(
+                                   "includeLFS",
+                                   label = "Include Shop Requests",
+                                   value = FALSE,
+                                   width = "100%"
+                                 )
+                               ))),
+                               
+                               fluidRow(column(12, div(style = "height:10px"))),
+                               
+                               #Data Selection
+                               fluidRow(column(12, div(
+                                 dateInput(
+                                   inputId = "Date",
+                                   label = 'Date',
+                                   width = "100%"
+                                 )
+                               ))),
+                               
+                               #Time Selection
+                               fluidRow(column(12, div(
+                                 column(
+                                   6,
+                                   align = "center",
+                                   timeInput(
+                                     "FromTime",
+                                     "From Time",
+                                     value = strptime("00:00", "%R"),
+                                     seconds = FALSE
+                                   )
+                                 ),
+                                 column(
+                                   6,
+                                   align = "center",
+                                   timeInput(
+                                     "ToTime",
+                                     "To Time",
+                                     value =  strptime("23:59", "%R"),
+                                     seconds = FALSE
+                                   )
+                                 )
+                               ))),
+                               
+                               
+                               fluidRow(column(
+                                 12,
+                                 align = "center",
+                                 actionButton(
+                                   inputId = "PLOT",
+                                   label = "PLOT",
+                                   width = "40%",
+                                   height = "40%",
+                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+                                 )
+                                 
+                               )),
+                         
+                         menuSubItem("Filters", tabName = "ui", icon = icon("angle-right")),
+                         
+                               fluidRow(column(12, div(
+                                 selectInput(
+                                   "ExclTraceIDs",
+                                   label = "Excluded Trace IDs",
+                                   choices = NULL,
+                                   width = '100%',
+                                   multiple = TRUE
+                                 )
+                               ))),
+                               
+                               
+                               fluidRow(column(12, div(style = "height:50px"))),
+                               
+                               
+                               fluidRow(column(12, div(
+                                 sliderInput(
+                                   "frequency",
+                                   "Frequency",
+                                   min = 0.1,
+                                   max = 1,
+                                   value = 0.4,
+                                   step = 0.01,
+                                   width = "100%"
+                                   
+                                 )
+                               ))),
+                               
+                               
+                               
+                               fluidRow(column(
+                                 12,
+                                 align = "center",
+                                 downloadButton(
+                                   outputId = "downloadProcessMap",
+                                   label = "Download Map",
+                                   width = "40%",
+                                   height = "40%",
+                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+                                 ),
+                                 downloadButton(
+                                   outputId = "downloadRawData",
+                                   label = "Download Data",
+                                   width = "40%",
+                                   height = "40%",
+                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+                                 )
+                                 
+                               )), 
+                               
+                               fluidRow(column(12, div(style = "padding:15px", strong(
+                                 em(
+                                   "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Techonlgy Optimization and Bookability teams - Dubai, UAE."
+                                 )
+                               ))))
+                )
+
+
+
+    )
   ),
   
   #Dashboard will have the tabs of the output
@@ -653,6 +663,7 @@ server <- function(input, output, session) {
       )
     }
   })
+  
 }
 
 # Run the application

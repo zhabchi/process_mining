@@ -566,6 +566,7 @@ server <- function(input, output, session) {
         }
         })
       
+      
       output$Records <- renderInfoBox({
         data <- hivedata()
         if(!is.null(data)){

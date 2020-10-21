@@ -653,7 +653,6 @@ server <- function(input, output, session) {
       )
     }
   })
-  
 }
 
 # Run the application

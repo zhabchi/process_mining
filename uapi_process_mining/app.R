@@ -280,8 +280,21 @@ ui <- dashboardPage(
   column(width = 2,
          br(),
          br(),
-         fluidRow(infoBoxOutput("TimeStamp")),
-         fluidRow(infoBoxOutput("Records"))
+         fluidRow(
+           strong("Report Parameters")),
+         br(),
+         fluidRow(
+           icon("user"),"Agency:"),
+         br(),
+         fluidRow(
+           icon("clock"),"Last Timestamp:"),
+         fluidRow(
+          textOutput(outputId = "TimeStamp")),
+         br(),
+         fluidRow(
+         icon("list-ol"),"Number of Records loaded:"),
+        fluidRow(
+         textOutput(outputId = "Records"))
          )
   
   )
@@ -491,6 +504,7 @@ server <- function(input, output, session) {
   
   output$process <- NULL
   output$Pr_map <- NULL
+  
 
   observeEvent(input$PLOT, {
     if (input$Agency_ID == "")
@@ -579,33 +593,19 @@ server <- function(input, output, session) {
         }
       })
       
-      output$TimeStamp <- renderInfoBox({
+      output$TimeStamp <- renderText({
         data <- hivedata()
         if(!is.null(data)){
         last_ts <-  max(data$log_ts)
         last_ts <- format(last_ts, format="%H:%M:%S")
-          infoBox(
-            title = "Last Record Timestamp", 
-            value = paste0(last_ts), 
-            icon = icon("calendar"),
-            color = "blue", 
-            fill = FALSE
-          )
         }
         })
       
       
-      output$Records <- renderInfoBox({
+      output$Records <- renderText({
         data <- hivedata()
         if(!is.null(data)){
-          records <-  nrow(data)
-          infoBox(subtitle = "sd",
-            title = "Number of Records", 
-            value = paste0(records), 
-            icon = icon("list-ol"),
-            color = "purple", 
-            fill = FALSE
-          )
+          records <-  format(nrow(data), big.mark=",",scientific=FALSE)
         }
       })
       

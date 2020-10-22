@@ -42,8 +42,12 @@ ui <- dashboardPage(
     width = 350,
     
     sidebarMenu(id="tabs",
-                menuItem("Report Parameters",  icon = icon("file-text-o"),
-                         menuSubItem("Request Data", tabName = "global", icon = icon("angle-right")),
+                menuItem(text = "Report Parameters",
+                         icon = icon("file-text-o"),
+                         startExpanded = TRUE,
+                      
+                         
+                         menuSubItem("Request Data", tabName = "global", icon = icon("info-circle")),
                          
                                #Dropdown for Agencies, data loaded from API
                                fluidRow(column(12, div(
@@ -68,17 +72,6 @@ ui <- dashboardPage(
                                  )
                                ))),
                                
-                               fluidRow(column(12, div(style = "height:10px"))),
-                               
-                               #Checkbox to Exclude LFS requests
-                               fluidRow(column(12, div(
-                                 checkboxInput(
-                                   "includeLFS",
-                                   label = "Include Shop Requests",
-                                   value = FALSE,
-                                   width = "100%"
-                                 )
-                               ))),
                                
                                fluidRow(column(12, div(style = "height:10px"))),
                                
@@ -115,6 +108,18 @@ ui <- dashboardPage(
                                  )
                                ))),
                                
+                               fluidRow(column(12, div(style = "height:10px"))),
+                               
+                               #Checkbox to Exclude LFS requests
+                               fluidRow(column(12, div(
+                                 checkboxInput(
+                                   "includeLFS",
+                                   label = "Include Shop Requests",
+                                   value = FALSE,
+                                   width = "100%"
+                                 )
+                               ))),
+                               
                                
                                fluidRow(column(
                                  12,
@@ -129,7 +134,7 @@ ui <- dashboardPage(
                                  
                                ))),
                          
-                      menuItem("Filters",  icon = icon("file-text-o"),
+                      menuItem("Filters",  icon = icon("filter"),
                          menuSubItem(text = ""),
                          
                                fluidRow(column(12, div(
@@ -157,10 +162,11 @@ ui <- dashboardPage(
                                    width = "100%"
                                    
                                  )
-                               ))),
+                               )))),
                                
                                
-                               
+                         menuItem("Export",  icon = icon("download"),
+                                  menuSubItem(text = ""),       
                                fluidRow(column(
                                  12,
                                  align = "center",
@@ -208,8 +214,10 @@ ui <- dashboardPage(
   )),
   
   
-  fluidRow(mainPanel(
-    width = 12,
+  
+  fluidRow(column(width = 10,
+    mainPanel(
+      width = 12,
     
     tabsetPanel(
       type = "tabs",
@@ -219,10 +227,7 @@ ui <- dashboardPage(
         title = "Workflow Visualization",
         icon = icon("project-diagram", class = "fas fa-project-diagram"),
         br(),
-        fluidRow( column(10 , grVizOutput("Pr_map", height = "800px") ),
-                  column(2 , 
-                                 fluidRow(infoBoxOutput("TimeStamp")),
-                                 fluidRow(infoBoxOutput("Records"))))
+        fluidRow( column(12 , grVizOutput("Pr_map", height = "800px")))
       ),
 
       #workflow animation
@@ -271,7 +276,16 @@ ui <- dashboardPage(
       #  valueBoxOutput("loopBox")
       #)
     )
-  )))
+  )),
+  column(width = 2,
+         br(),
+         br(),
+         fluidRow(infoBoxOutput("TimeStamp")),
+         fluidRow(infoBoxOutput("Records"))
+         )
+  
+  )
+  )
 )
 
 #secure app will enable login screen
@@ -571,8 +585,11 @@ server <- function(input, output, session) {
         last_ts <-  max(data$log_ts)
         last_ts <- format(last_ts, format="%H:%M:%S")
           infoBox(
-            "Last Record Timestamp", paste0(last_ts), icon = icon("calendar"),
-            color = "blue", fill = FALSE
+            title = "Last Record Timestamp", 
+            value = paste0(last_ts), 
+            icon = icon("calendar"),
+            color = "blue", 
+            fill = FALSE
           )
         }
         })
@@ -582,9 +599,12 @@ server <- function(input, output, session) {
         data <- hivedata()
         if(!is.null(data)){
           records <-  nrow(data)
-          infoBox(
-            "Number of Records", paste0(records), icon = icon("list"),
-            color = "purple", fill = FALSE
+          infoBox(subtitle = "sd",
+            title = "Number of Records", 
+            value = paste0(records), 
+            icon = icon("list-ol"),
+            color = "purple", 
+            fill = FALSE
           )
         }
       })

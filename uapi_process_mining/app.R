@@ -19,10 +19,27 @@ library(ggplot2)
 library(edeaR)
 library(shinymanager)
 
+
 r <-
   GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1") #internal API to retrieve all agencies list in alphabetical order
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
-#AllActivities <- c('OptimizedLowFareSearch','BookingStart','BookingAirSegment','BookingTraveler','BookingPricing','BookingPnrElement','BookingDisplay','BookingTerminal','BookingEnd','BookingAirPnrElement','AirTicketing','UniversalRecordRetrieve','AirRetrieveDocument')
+AllActivities <-
+  c(
+    'OptimizedLowFareSearch',
+    'AirPrice' ,
+    'AirTicketing',
+    'AirRetrieveDocument',
+    'BookingStart',
+    'BookingAirSegment',
+    'BookingTraveler',
+    'BookingPricing',
+    'BookingPnrElement',
+    'BookingDisplay',
+    'BookingTerminal',
+    'BookingEnd',
+    'BookingAirPnrElement',
+    'UniversalRecordRetrieve'
+  )
 
 isDebug <-
   TRUE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
@@ -41,161 +58,191 @@ ui <- dashboardPage(
   dashboardSidebar(
     width = 350,
     
-    sidebarMenu(id="tabs",
-                menuItem(text = "Report Parameters",
-                         icon = icon("file-text-o"),
-                         startExpanded = TRUE,
-                      
-                         
-                         menuSubItem("Request Data", tabName = "global", icon = icon("info-circle")),
-                         
-                               #Dropdown for Agencies, data loaded from API
-                               fluidRow(column(12, div(
-                                 selectInput(
-                                   "Agency_ID",
-                                   label = "Agency*",
-                                   choices = c(unique(as.character(Agencies$name))),
-                                   width = '100%',
-                                   multiple = FALSE
-                                 )
-                               ))),
-                               fluidRow(column(12, div(style = "height:10px"))),
-                               
-                               #Filter PCC dropdown
-                               fluidRow(column(12, div(
-                                 selectInput(
-                                   "PCC",
-                                   label = "PCC",
-                                   choices = "All",
-                                   width = '100%',
-                                   multiple = F
-                                 )
-                               ))),
-                               
-                               
-                               fluidRow(column(12, div(style = "height:10px"))),
-                               
-                               #Data Selection
-                               fluidRow(column(12, div(
-                                 dateInput(
-                                   inputId = "Date",
-                                   label = 'Date',
-                                   width = "100%"
-                                 )
-                               ))),
-                               
-                               #Time Selection
-                               fluidRow(column(12, div(
-                                 column(
-                                   6,
-                                   align = "center",
-                                   timeInput(
-                                     "FromTime",
-                                     "From Time",
-                                     value = strptime("00:00", "%R"),
-                                     seconds = FALSE
-                                   )
-                                 ),
-                                 column(
-                                   6,
-                                   align = "center",
-                                   timeInput(
-                                     "ToTime",
-                                     "To Time",
-                                     value =  strptime("23:59", "%R"),
-                                     seconds = FALSE
-                                   )
-                                 )
-                               ))),
-                               
-                               fluidRow(column(12, div(style = "height:10px"))),
-                               
-                               #Checkbox to Exclude LFS requests
-                               fluidRow(column(12, div(
-                                 checkboxInput(
-                                   "includeLFS",
-                                   label = "Include Shop Requests",
-                                   value = FALSE,
-                                   width = "100%"
-                                 )
-                               ))),
-                               
-                               
-                               fluidRow(column(
-                                 12,
-                                 align = "center",
-                                 actionButton(
-                                   inputId = "PLOT",
-                                   label = "PLOT",
-                                   width = "40%",
-                                   height = "40%",
-                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-                                 )
-                                 
-                               ))),
-                         
-                      menuItem("Filters",  icon = icon("filter"),
-                         menuSubItem(text = ""),
-                         
-                               fluidRow(column(12, div(
-                                 selectInput(
-                                   "ExclTraceIDs",
-                                   label = "Excluded Trace IDs",
-                                   choices = NULL,
-                                   width = '100%',
-                                   multiple = TRUE
-                                 )
-                               ))),
-                               
-                               
-                               fluidRow(column(12, div(style = "height:50px"))),
-                               
-                               
-                               fluidRow(column(12, div(
-                                 sliderInput(
-                                   "frequency",
-                                   "Frequency",
-                                   min = 0.1,
-                                   max = 1,
-                                   value = 0.4,
-                                   step = 0.01,
-                                   width = "100%"
-                                   
-                                 )
-                               )))),
-                               
-                               
-                         menuItem("Export",  icon = icon("download"),
-                                  menuSubItem(text = ""),       
-                               fluidRow(column(
-                                 12,
-                                 align = "center",
-                                 downloadButton(
-                                   outputId = "downloadProcessMap",
-                                   label = "Download Map",
-                                   width = "40%",
-                                   height = "40%",
-                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-                                 ),
-                                 downloadButton(
-                                   outputId = "downloadRawData",
-                                   label = "Download Data",
-                                   width = "40%",
-                                   height = "40%",
-                                   style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-                                 )
-                                 
-                               )), 
-                               
-                               fluidRow(column(12, div(style = "padding:15px", strong(
-                                 em(
-                                   "This app has been designed and developed by Ziad Habchi and Stephanos Kykkotis from Techonlgy Optimization and Bookability teams - Dubai, UAE."
-                                 )
-                               ))))
-                )
-
-
-
+    sidebarMenu(
+      id = "tabs",
+      menuItem(
+        text = "Report Parameters",
+        icon = icon("file-text-o"),
+        startExpanded = TRUE,
+        
+        
+        menuSubItem(
+          "Request Data",
+          tabName = "global",
+          icon = icon("info-circle")
+        ),
+        
+        #Dropdown for Agencies, data loaded from API
+        fluidRow(column(12, div(
+          selectInput(
+            "Agency_ID",
+            label = "Agency*",
+            choices = c(unique(as.character(Agencies$name))),
+            width = '100%',
+            multiple = FALSE
+          )
+        ))),
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        #Filter PCC dropdown
+        fluidRow(column(12, div(
+          textInput(
+            "PCC",
+            label = "PCC",
+            width = '100%',
+          )
+        ))),
+        
+        
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        #Data Selection
+        fluidRow(column(12, div(
+          dateInput(
+            inputId = "Date",
+            label = 'Date',
+            width = "100%"
+          )
+        ))),
+        
+        #Time Selection
+        fluidRow(column(12, div(
+          column(
+            6,
+            align = "center",
+            timeInput(
+              "FromTime",
+              "From Time",
+              value = strptime("00:00", "%R"),
+              seconds = FALSE
+            )
+          ),
+          column(
+            6,
+            align = "center",
+            timeInput(
+              "ToTime",
+              "To Time",
+              value =  strptime("23:59", "%R"),
+              seconds = FALSE
+            )
+          )
+        ))),
+        
+        fluidRow(column(12, div(style = "height:10px"))),
+        
+        #Checkbox to Exclude LFS requests
+        fluidRow(column(12, div(
+          checkboxInput(
+            "includeLFS",
+            label = "Include Shop Requests",
+            value = FALSE,
+            width = "100%"
+          )
+        ))),
+        
+        
+        fluidRow(column(
+          12,
+          align = "center",
+          actionButton(
+            inputId = "PLOT",
+            label = "PLOT",
+            width = "40%",
+            height = "40%",
+            style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+          )
+          
+        ))
+      ),
+      
+      menuItem(
+        "Filters",
+        icon = icon("filter"),
+        menuSubItem(text = ""),
+        
+        fluidRow(column(12, div(
+          selectInput(
+            "ExclTraceIDs",
+            label = "Excluded Trace IDs",
+            choices = NULL,
+            width = '100%',
+            multiple = TRUE
+          )
+        ))),
+        
+        fluidRow(column(12, div(
+          selectInput(
+            "Activities",
+            label = "Filter Activities",
+            choices = AllActivities,
+            width = '100%',
+            multiple = TRUE
+          )
+        ))),
+        
+        #Filter PCC dropdown
+        fluidRow(column(12, div(
+          selectInput(
+            "FilterPCC",
+            label = "PCC",
+            width = '100%',
+            choices = NULL,
+            multiple = T
+          )
+        ))),
+        
+        fluidRow(column(12, div(
+          sliderInput(
+            "frequency",
+            "Frequency",
+            min = 0.1,
+            max = 1,
+            value = 0.4,
+            step = 0.01,
+            width = "100%"
+            
+          )
+        )))
+      ),
+      
+      
+      menuItem(
+        "Export",
+        icon = icon("download"),
+        menuSubItem(text = ""),
+        fluidRow(column(
+          12,
+          align = "center",
+          downloadButton(
+            outputId = "downloadProcessMap",
+            label = "Download Map",
+            width = "40%",
+            height = "40%",
+            style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+          ),
+          downloadButton(
+            outputId = "downloadRawData",
+            label = "Download Data",
+            width = "40%",
+            height = "40%",
+            style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
+          )
+          
+        ))
+      ),
+      
+       menuItem(
+        "Help",
+        icon = icon("info"),
+        
+        fluidRow(column(12, div(style = "padding:15px;", strong()))),
+        
+        p(em("This app has been designed and developed by Ziad Habchi 
+            and Stephanos Kykkotis from Techonlgy Optimization and 
+            Bookability teams - Dubai, UAE."))
+      )
+      
     )
   ),
   
@@ -215,105 +262,117 @@ ui <- dashboardPage(
   
   
   
-  fluidRow(column(width = 10,
-    mainPanel(
-      width = 12,
-    
-    tabsetPanel(
-      type = "tabs",
-      
-      #workflow static Map
-      tabPanel(
-        title = "Workflow Visualization",
-        icon = icon("project-diagram", class = "fas fa-project-diagram"),
-        br(),
-        fluidRow( column(12 , grVizOutput("Pr_map", height = "800px")))
-      ),
-
-      #workflow animation
-      tabPanel(
-        title = "Workflow Animation",
-        icon = icon("project-diagram", class = "fas fa-sync-alt fa-spin"),
-        br(),
-        shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process") , type = 1)
-      ),
-      
-      tabPanel(
-        title = "Trace ID Insights",
-        icon = icon("fingerprint"),
-        br(),
-        fluidRow(
-          box(
-            width = 6,
-            title = "Identify Hardcoded Trace IDs",
-            status = "primary",
-            solidHeader = TRUE,
-            DT::dataTableOutput("traceID_aggr", height = 400)
-          ),
-          
-          box(
-            width = 6,
-            title = "Trace ID usage per Request",
-            status = "primary",
-            solidHeader = TRUE,
-            plotOutput("traceId_plot", height = 400)
-          )
-          
-        )
-      ),
-      
-      tabPanel(
-        title = "Raw Data Table",
-        icon = icon("table"),
-        br(),
-        DT::dataTableOutput("RawData")
-      )#,
-      
-      #tabPanel(
-      #  title = "Monitor",
-      #  icon = icon("chart-line"),
-      #  br(),
-      #  valueBoxOutput("loopBox")
-      #)
+  fluidRow(
+    column(width = 10,
+           mainPanel(
+             width = 12,
+             
+             tabsetPanel(
+               type = "tabs",
+               
+               #workflow static Map
+               tabPanel(
+                 title = "Workflow Visualization",
+                 icon = icon("project-diagram", class = "fas fa-project-diagram"),
+                 br(),
+                 fluidRow(column(
+                   12 , grVizOutput("Pr_map", height = "800px")
+                 ))
+               ),
+               
+               #workflow animation
+               tabPanel(
+                 title = "Workflow Animation",
+                 icon = icon("project-diagram", class = "fas fa-sync-alt fa-spin"),
+                 br(),
+                 shinycssloaders::withSpinner(processanimaterOutput(height = "800px", "process") , type = 1)
+               ),
+               
+               tabPanel(
+                 title = "Trace ID Insights",
+                 icon = icon("fingerprint"),
+                 br(),
+                 fluidRow(
+                   box(
+                     width = 6,
+                     title = "Identify Hardcoded Trace IDs",
+                     status = "primary",
+                     solidHeader = TRUE,
+                     DT::dataTableOutput("traceID_aggr", height = 400)
+                   ),
+                   
+                   box(
+                     width = 6,
+                     title = "Trace ID usage per Request",
+                     status = "primary",
+                     solidHeader = TRUE,
+                     plotOutput("traceId_plot", height = 400)
+                   )
+                   
+                 )
+               ),
+               
+               tabPanel(
+                 title = "Raw Data Table",
+                 icon = icon("table"),
+                 br(),
+                 fluidRow(box(width = 12,
+                              DT::dataTableOutput("RawData")))
+               )#,
+               
+               #tabPanel(
+               #  title = "Monitor",
+               #  icon = icon("chart-line"),
+               #  br(),
+               #  valueBoxOutput("loopBox")
+               #)
+             )
+           )),
+    column(
+      width = 2,
+      br(),
+      br(),
+      fluidRow(strong("Report Parameters")),
+      br(),
+      fluidRow(icon("user"), "Agency:"),
+      fluidRow(textOutput(outputId = "SelectedAgency")),
+      br(),
+      fluidRow(icon("clock"), "Last Timestamp:"),
+      fluidRow(textOutput(outputId = "TimeStamp")),
+      br(),
+      fluidRow(icon("list-ol"), "Number of Records loaded:"),
+      fluidRow(textOutput(outputId = "Records"))
     )
-  )),
-  column(width = 2,
-         br(),
-         br(),
-         fluidRow(
-           strong("Report Parameters")),
-         br(),
-         fluidRow(
-           icon("user"),"Agency:"),
-         br(),
-         fluidRow(
-           icon("clock"),"Last Timestamp:"),
-         fluidRow(
-          textOutput(outputId = "TimeStamp")),
-         br(),
-         fluidRow(
-         icon("list-ol"),"Number of Records loaded:"),
-        fluidRow(
-         textOutput(outputId = "Records"))
-         )
-  
-  )
-  )
+    
+  ))
 )
 
 #secure app will enable login screen
-ui <- secure_app(ui, enable_admin = TRUE)
+ui <- secure_app(ui,
+                 tags_bottom = tags$div(
+                   tags$p(
+                     "For new users or password reset, send your request to the following ",
+                     tags$a(href = "mailto:ziad.habchi@travelport.com?Subject=uAPI%20Process%20Mining",
+                            target = "_top", "email address")
+                   )
+                 ),
+                 enable_admin = TRUE)
 
 server <- function(input, output, session) {
   #check if user is authorized against the user.sqlite database
-  res_auth <- secure_server(check_credentials = check_credentials("../database/users.sqlite",
-                                                                  passphrase = "Travelport"))
+  res_auth <-
+    secure_server(check_credentials = check_credentials("../database/users.sqlite",
+                                                        passphrase = "Travelport"))
   
   hivedata <- reactive({
+    x <- input$PLOT #necessary to re-evaluate the fnc on button press
+    
     fromDate <- isolate({
-      paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")})
+      paste(input$Date, strftime(input$FromTime, "%R"), sep = " ")
+    })
     toDate <- isolate({
-      paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")})
+      paste(input$Date , strftime(input$ToTime, "%R"), sep = " ")
+    })
     
     
     url <-
@@ -324,7 +383,7 @@ server <- function(input, output, session) {
     param2 <-  "\", \"txType\":\"\", \"startDate\":\""
     param3 <-   " 00:00\", \"endDate\":\""
     param4 <-   " 00:00\", \"successVal\":\"All\",
-                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,\",
+                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key\",
                         \"rowLimit\":\"30000\",
                         \"outputFormat\":\"json\",
                         \"orderBy\":\"log_ts\",
@@ -337,22 +396,23 @@ server <- function(input, output, session) {
       param5 <-
       "\"restrictions\": \"request_type_desc not-contains OptimizedLowFareSearch"
     
-    
-    if (input$PCC != "All")
+    filterPCC <- isolate(input$PCC)
+
+    if (filterPCC != "")
     {
       if (exists("param5"))
       {
         param5 <-
           paste(param5 ,
                 ", pseudo_city_code equals ",
-                input$PCC,
+                filterPCC,
                 "\"," ,
                 sep = "")
       }
       else
         param5 <-
           paste("\"restrictions\": \"pseudo_city_code equals ",
-                input$PCC,
+                filterPCC,
                 "\",",
                 sep = "")
     }
@@ -382,30 +442,31 @@ server <- function(input, output, session) {
         param5,
         param6,
         sep = ""
-      )})
+      )
+    })
     print(jsonargs)
     parambody <- list(json = jsonargs)
     ##
-   
+    
     
     #section will load data from file
     if (isDebug)
     {
-       msgId <-
-      showNotification("Loading data from file." ,
-                       type = "message" ,
-                       duration = NULL)
+      msgId <-
+        showNotification("Loading data from file." ,
+                         type = "message" ,
+                         duration = NULL)
       #hivedata <- read_csv("Workflow from Website.csv")
-      hivedata <- read_csv("IBIBO WEB Hierarchy2020-06-01 00_00.csv")
+      hivedata <- read_csv("IBIBO WEB Hierarchy2020-10-25data.csv")
       hivedata$log_ts <-
         as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
       removeNotification(msgId)
       hivedata <- hivedata %>%
         filter(!(traceid  %in% input$ExclTraceIDs))
       
-      if (input$PCC != "All")
+      if (!is.null(filterPCC) && filterPCC != "")
       {
-        hivedata <- hivedata  %>%  filter(pseudo_city_code == input$PCC)
+        hivedata <- hivedata  %>%  filter(pseudo_city_code == filterPCC)
       }
       
       #filtering top x records for performance reasons
@@ -413,14 +474,15 @@ server <- function(input, output, session) {
       
       hivedata
     }
-    else if (!isDebug) #call hive API for data
+    else if (!isDebug)
+      #call hive API for data
     {
-       msgId <-
-      showNotification("Retreiving data from HIVE server." ,
-                       type = "message" ,
-                       duration = NULL)
-
-      res = POST(url, body =  parambody , encode = "form")      
+      msgId <-
+        showNotification("Retreiving data from HIVE server." ,
+                         type = "message" ,
+                         duration = NULL)
+      
+      res = POST(url, body =  parambody , encode = "form")
       
       ##check response code
       if (res$status_code == 200)
@@ -437,7 +499,7 @@ server <- function(input, output, session) {
           
           #filtering top x records for performance reasons
           hivedata <- head(hivedata, 30000)
-
+          
           hivedata
         }
         else
@@ -463,27 +525,36 @@ server <- function(input, output, session) {
   #generate even log using eventlog function
   eventloghive <- reactive({
     data <- hivedata()
-
-    if ((!is.null(data)) && (nrow(data) > 0)) #check initial data is exist
+    
+    if ((!is.null(data)) &&
+        (nrow(data) > 0))
+      #check initial data is exist
     {
       #filtering out excluded trace ids
       data <- data %>%
         filter(!(traceid  %in% input$ExclTraceIDs))
-            
-      #filtering out exculded PCCs
-      if (input$PCC != "All")
+      
+      #filtering out PCCs
+      if (!is.null(input$FilterPCC))
       {
-        data <- data  %>%  filter(pseudo_city_code == input$PCC)
+        data <- data  %>%  filter(pseudo_city_code %in% input$FilterPCC)
       }
-  
-      data <- data %>% #a data.frame with the information in the table above
-          filter(!(traceid %in% c("", " "))) %>%
-          filter(!(is.na(traceid)))
+      
+      #filtering on selected Activities
+      if (!is.null(input$Activities))
+      {
+        data <- data  %>%  filter(request_type_desc %in% input$Activities)
+      }
+      
+      data <-
+        data %>% #a data.frame with the information in the table above
+        filter(!(traceid %in% c("", " "))) %>%
+        filter(!(is.na(traceid)))
     }
-   
-    if ((!is.null(data)) && (nrow(data) > 0)) 
+    
+    if ((!is.null(data)) && (nrow(data) > 0))
     {
-      data %>% #a data.frame with the information in the table above        
+      data %>% #a data.frame with the information in the table above
         mutate(status = NA) %>%
         mutate(lifecycle_id = NA) %>%
         mutate(activity_instance = 1:nrow(.)) %>%
@@ -505,7 +576,7 @@ server <- function(input, output, session) {
   output$process <- NULL
   output$Pr_map <- NULL
   
-
+  
   observeEvent(input$PLOT, {
     if (input$Agency_ID == "")
     {
@@ -514,9 +585,10 @@ server <- function(input, output, session) {
     }
     else
     {
+      data <- hivedata()
       #update the dropdown list of trace ID
       tempSlcted <- input$ExclTraceIDs
-      traceIds <- unique(hivedata()$traceid)
+      traceIds <- unique(data$traceid)
       traceIds <- traceIds[!is.na(traceIds)] #remove NA
       updateSelectInput(session,
                         "ExclTraceIDs",
@@ -524,17 +596,16 @@ server <- function(input, output, session) {
                         selected = tempSlcted)
       
       #update the dropdown list of PCC
-      tempSlcted <- input$PCC
-      Pccs <- unique(hivedata()$pseudo_city_code)
-      Pccs <- prepend(Pccs , "All")
+      tempSlcted <- input$FilterPCC
+      Pccs <- unique(data$pseudo_city_code)
       updateSelectInput(session,
-                        "PCC",
+                        "FilterPCC",
                         choices = Pccs,
                         selected = tempSlcted)
-
+      
       #display the usage of traceid
       output$traceID_aggr <- DT::renderDataTable({
-        data <- hivedata()
+        #data <- hivedata()
         if (!is.null(data))
         {
           hivedataaggr <-  data %>%
@@ -549,12 +620,12 @@ server <- function(input, output, session) {
       
       
       output$traceId_plot <-  renderPlot({
-        data <- hivedata()
+        #data <- hivedata()
         if (!is.null(data))
         {
-          totalReq <- nrow(hivedata())
+          totalReq <- nrow(data)
           hivedataplot <-
-            hivedata() %>% group_by(request_type_desc) %>%
+            data %>% group_by(request_type_desc) %>%
             mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
             summarise(
               count_req =  n() ,
@@ -575,14 +646,16 @@ server <- function(input, output, session) {
       
       #display raw data in a table
       output$RawData <- DT::renderDataTable({
-        hivedata()
+        data
       })
       
       output$Pr_map <- renderGrViz({
         loghiv <- eventloghive()
-      
+        
         if (!is.null(loghiv))
         {
+          msgId <-
+            showNotification("Rendering Chart ..." ,  type = "default")
           pp <-
             loghiv %>%
             process_map(
@@ -590,29 +663,42 @@ server <- function(input, output, session) {
               sec_edges = performance(mean, "mins"),
               rankdir = "TB"
             )
+          removeNotification(msgId)
+          pp
         }
       })
       
       output$TimeStamp <- renderText({
-        data <- hivedata()
-        if(!is.null(data)){
-        last_ts <-  max(data$log_ts)
-        last_ts <- format(last_ts, format="%H:%M:%S")
+        
+        if (!is.null(data)) {
+          last_ts <-  max(data$log_ts)
+          last_ts <- format(last_ts, format = "%H:%M:%S")
         }
-        })
+      })
       
       
       output$Records <- renderText({
-        data <- hivedata()
-        if(!is.null(data)){
-          records <-  format(nrow(data), big.mark=",",scientific=FALSE)
+        #data <- hivedata()
+        if (!is.null(data)) {
+          records <-  format(nrow(data),
+                             big.mark = ",",
+                             scientific = FALSE)
+        }
+      })
+      
+      output$SelectedAgency <- renderText({
+        #data <- hivedata()
+        if (!is.null(data) && nrow(data) > 0) {
+          agencies <- data$agency_name
+          selectedAgency <-  agencies[1]
+          selectedAgency
         }
       })
       
       
       output$process <- renderProcessanimater(expr = {
         loghiv <- eventloghive()
-       
+        
         if (!is.null(loghiv))
         {
           graph <-
@@ -649,7 +735,7 @@ server <- function(input, output, session) {
           paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
         },
         content = function(file) {
-          write.csv(hivedata() , file)
+          write.csv(data , file)
         }
       )
       

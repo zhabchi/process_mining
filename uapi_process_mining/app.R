@@ -41,6 +41,9 @@ AllActivities <-
     'UniversalRecordRetrieve'
   )
 
+
+AllAUx1 <- c('Ignore', 'End') #applies only to BookingEnd
+
 isDebug <-
   TRUE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
 
@@ -193,6 +196,16 @@ ui <- dashboardPage(
         ))),
         
         fluidRow(column(12, div(
+          selectInput(
+            "Aux1",
+            label = "Filter aux1 (for BookingEnd only)",
+            choices = AllAUx1,
+            width = '100%',
+            multiple = TRUE
+          )
+        ))),
+        
+        fluidRow(column(12, div(
           sliderInput(
             "frequency",
             "Frequency",
@@ -210,7 +223,7 @@ ui <- dashboardPage(
       menuItem(
         "Export",
         icon = icon("download"),
-        menuSubItem(text = ""),
+        menuSubItem(text = "Export/Import"),
         fluidRow(column(
           12,
           align = "center",
@@ -218,14 +231,12 @@ ui <- dashboardPage(
             outputId = "downloadProcessMap",
             label = "Download Map",
             width = "40%",
-            height = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
           ),
           downloadButton(
             outputId = "downloadRawData",
             label = "Download Data",
             width = "40%",
-            height = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
           )
           
@@ -235,13 +246,10 @@ ui <- dashboardPage(
        menuItem(
         "Help",
         icon = icon("info"),
-        
-        fluidRow(column(12, div(style = "padding:15px;", strong()))),
-        
-        p(em("This app has been designed and developed by Ziad Habchi 
-            and Stephanos Kykkotis from Techonlgy Optimization and 
-            Bookability teams - Dubai, UAE."))
-      )
+                tags$div(tags$p(em("This app has been designed and developed by", tags$br(), strong( "Ziad Habchi
+                and Stephanos Kykkotis from") , tags$br(),"Techonlgy Optimization and 
+                Bookability teams - Dubai, UAE."))
+      ))
       
     )
   ),
@@ -383,7 +391,7 @@ server <- function(input, output, session) {
     param2 <-  "\", \"txType\":\"\", \"startDate\":\""
     param3 <-   " 00:00\", \"endDate\":\""
     param4 <-   " 00:00\", \"successVal\":\"All\",
-                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key\",
+                        \"fieldsList\": \"log_id,log_ts,request_type_desc,success_ind,agency_name,pseudo_city_code,traceid,session_key,aux1\",
                         \"rowLimit\":\"30000\",
                         \"outputFormat\":\"json\",
                         \"orderBy\":\"log_ts\",
@@ -469,6 +477,12 @@ server <- function(input, output, session) {
         hivedata <- hivedata  %>%  filter(pseudo_city_code == filterPCC)
       }
       
+      ####test - filter bookingEnd and PCC not Monitoring to get auto-closed sessions
+      #bookingend <- hivedata %>% filter(  (pseudo_city_code == "Universal API") & (request_type_desc == "BookingEnd"))
+      #hivedata <- hivedata %>% filter(request_type_desc != "BookingEnd")
+      #hivedata <- rbind(hivedata,bookingend)
+      #####
+
       #filtering top x records for performance reasons
       hivedata <- head(hivedata, 30000)
       
@@ -490,7 +504,7 @@ server <- function(input, output, session) {
         ##
         removeNotification(msgId)
         hivedata = fromJSON(rawToChar(res$content))
-        
+
         ##check if return is empty content
         if (rawToChar(res$content) != "[]")
         {
@@ -544,6 +558,12 @@ server <- function(input, output, session) {
       if (!is.null(input$Activities))
       {
         data <- data  %>%  filter(request_type_desc %in% input$Activities)
+      }
+      
+      #filtering on selected aux1 - Applies only to BookingEnd (always include NA aux1)
+      if (!is.null(input$Aux1))
+      {
+        data <- data  %>%  filter((is.na(aux1)) | (aux1 == "") | (aux1 %in% input$Aux1))
       }
       
       data <-

@@ -477,11 +477,6 @@ server <- function(input, output, session) {
         hivedata <- hivedata  %>%  filter(pseudo_city_code == filterPCC)
       }
       
-      ####test - filter bookingEnd and PCC not Monitoring to get auto-closed sessions
-      #bookingend <- hivedata %>% filter(  (pseudo_city_code == "Universal API") & (request_type_desc == "BookingEnd"))
-      #hivedata <- hivedata %>% filter(request_type_desc != "BookingEnd")
-      #hivedata <- rbind(hivedata,bookingend)
-      #####
 
       #filtering top x records for performance reasons
       hivedata <- head(hivedata, 30000)

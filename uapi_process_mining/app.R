@@ -221,9 +221,9 @@ ui <- dashboardPage(
       
       
       menuItem(
-        "Export",
+        "Export/Import",
         icon = icon("download"),
-        menuSubItem(text = "Export/Import"),
+        menuSubItem(text = "Export"),
         fluidRow(column(
           12,
           align = "center",
@@ -238,7 +238,13 @@ ui <- dashboardPage(
             label = "Download Data",
             width = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-          )
+          ),
+          # Input: Select a file ----
+          fileInput("file1", "Choose CSV File",
+                    multiple = FALSE,
+                    accept = c("text/csv",
+                               "text/comma-separated-values,text/plain",
+                               ".csv"))
           
         ))
       ),

@@ -79,7 +79,7 @@ ui <- dashboardPage(
         fluidRow(column(12, div(
           selectInput(
             "Agency_ID",
-            label = "Agency*",
+            label = "*Agency:",
             choices = c(unique(as.character(Agencies$name))),
             width = '100%',
             multiple = FALSE
@@ -91,7 +91,7 @@ ui <- dashboardPage(
         fluidRow(column(12, div(
           textInput(
             "PCC",
-            label = "PCC",
+            label = "PCC:",
             width = '100%',
           )
         ))),
@@ -103,7 +103,7 @@ ui <- dashboardPage(
         fluidRow(column(12, div(
           dateInput(
             inputId = "Date",
-            label = 'Date',
+            label = '*Date:',
             width = "100%"
           )
         ))),
@@ -115,7 +115,7 @@ ui <- dashboardPage(
             align = "center",
             timeInput(
               "FromTime",
-              "From Time",
+              "*Start Time:",
               value = strptime("00:00", "%R"),
               seconds = FALSE
             )
@@ -125,7 +125,7 @@ ui <- dashboardPage(
             align = "center",
             timeInput(
               "ToTime",
-              "To Time",
+              "*End Time:",
               value =  strptime("23:59", "%R"),
               seconds = FALSE
             )
@@ -312,7 +312,7 @@ ui <- dashboardPage(
                      title = "Identify Hardcoded Trace IDs",
                      status = "primary",
                      solidHeader = TRUE,
-                     DT::dataTableOutput("traceID_aggr", height = 400)
+                     DT::dataTableOutput("traceID_aggr", height = 600)
                    ),
                    
                    box(
@@ -320,7 +320,7 @@ ui <- dashboardPage(
                      title = "Trace ID usage per Request",
                      status = "primary",
                      solidHeader = TRUE,
-                     plotOutput("traceId_plot", height = 400)
+                     plotOutput("traceId_plot", height = 600)
                    )
                    
                  )
@@ -330,8 +330,14 @@ ui <- dashboardPage(
                  title = "Raw Data Table",
                  icon = icon("table"),
                  br(),
-                 fluidRow(box(width = 12,
-                              DT::dataTableOutput("RawData")))
+                 fluidRow(column(
+                          width=12,
+                          DT::dataTableOutput(
+                            outputId = "RawData",
+                            height = 800
+                            )
+                          )
+                          )
                )#,
                
                #tabPanel(
@@ -667,9 +673,14 @@ server <- function(input, output, session) {
       
       #display raw data in a table
       output$RawData <- DT::renderDataTable({
-        data
+        DT::datatable(data = data,
+                      fillContainer = TRUE,
+                      class = "display nowrap",
+                      options = list(pageLength = 25)
+                      )
       })
       
+
       output$Pr_map <- renderGrViz({
         loghiv <- eventloghive()
         

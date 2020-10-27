@@ -203,20 +203,8 @@ ui <- dashboardPage(
             width = '100%',
             multiple = TRUE
           )
-        ))),
-        
-        fluidRow(column(12, div(
-          sliderInput(
-            "frequency",
-            "Frequency",
-            min = 0.1,
-            max = 1,
-            value = 0.4,
-            step = 0.01,
-            width = "100%"
-            
-          )
-        )))
+        )))       
+   
       ),
       
       
@@ -255,7 +243,33 @@ ui <- dashboardPage(
                 tags$div(tags$p(em("This app has been designed and developed by", tags$br(), strong( "Ziad Habchi
                 and Stephanos Kykkotis from") , tags$br(),"Techonlgy Optimization and 
                 Bookability teams - Dubai, UAE."))
-      ))
+      )),
+
+      fluidRow(column(12, div(
+    sliderInput(
+      "frequency",
+      "Frequency",
+      min = 0.1,
+      max = 1,
+      value = 0.4,
+      step = 0.01,
+      width = "100%"
+      
+    )
+  ))),
+  
+  fluidRow(column(12, div(
+    sliderInput(
+      "Records",
+      "Number of Records",
+      min = 1000,
+      max = 250000,
+      value = 30000,
+      step = 500,
+      width = "100%"
+      
+    )
+    )))
       
     )
   ),
@@ -289,6 +303,7 @@ ui <- dashboardPage(
                  title = "Workflow Visualization",
                  icon = icon("project-diagram", class = "fas fa-project-diagram"),
                  br(),
+                 
                  fluidRow(column(
                    12 , grVizOutput("Pr_map", height = "800px")
                  ))
@@ -581,6 +596,7 @@ server <- function(input, output, session) {
     
     if ((!is.null(data)) && (nrow(data) > 0))
     {
+      data <- head(data,input$Records)      
       data %>% #a data.frame with the information in the table above
         mutate(status = NA) %>%
         mutate(lifecycle_id = NA) %>%

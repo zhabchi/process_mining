@@ -177,7 +177,7 @@ ui <- dashboardPage(
         fluidRow(column(12, div(
           selectInput(
             "Activities",
-            label = "Filter Activities",
+            label = "Filter Requests",
             choices = AllActivities,
             width = '100%',
             multiple = TRUE
@@ -305,7 +305,8 @@ ui <- dashboardPage(
                  br(),
                  
                  fluidRow(column(
-                   12 , grVizOutput("Pr_map", height = "800px")
+                   12 , grVizOutput(outputId = "Pr_map",
+                                    height = "800px")
                  ))
                ),
                
@@ -757,7 +758,8 @@ server <- function(input, output, session) {
               sec_edges = performance(mean, "mins"),
               rankdir = "TB"
             )
-          
+         
+
           model <- DiagrammeR::add_global_graph_attrs(
             graph,
             attr = "rankdir",

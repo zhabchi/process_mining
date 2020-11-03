@@ -45,7 +45,7 @@ AllActivities <-
 AllAUx1 <- c('Ignore', 'End') #applies only to BookingEnd
 
 isDebug <-
-  TRUE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
+  FALSE # when set to true, the dataframe will load from a hardcoded file on the server, otherwise will load from Hive API.
 
 set_labels(#set the label for login screen in shinymanager lib
   language = "en",
@@ -226,13 +226,13 @@ ui <- dashboardPage(
             label = "Download Data",
             width = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-          ),
+          )#,
           # Input: Select a file ----
-          fileInput("file1", "Choose CSV File",
-                    multiple = FALSE,
-                    accept = c("text/csv",
-                               "text/comma-separated-values,text/plain",
-                               ".csv"))
+          #fileInput("file1", "Choose CSV File",
+          #          multiple = FALSE,
+          #          accept = c("text/csv",
+          #                     "text/comma-separated-values,text/plain",
+          #                     ".csv"))
           
         ))
       ),
@@ -241,8 +241,8 @@ ui <- dashboardPage(
         "Help",
         icon = icon("info"),
                 tags$div(tags$p(em("This app has been designed and developed by", tags$br(), strong( "Ziad Habchi
-                and Stephanos Kykkotis from") , tags$br(),"Techonlgy Optimization and 
-                Bookability teams - Dubai, UAE."))
+                and Stephanos Kykkotis from") , tags$br(),"Technology Optimization and 
+                Bookability teams" , tags$br(), "Dubai, UAE."))
       )),
 
       fluidRow(column(12, div(
@@ -387,7 +387,7 @@ ui <- secure_app(ui,
                  tags_bottom = tags$div(
                    tags$p(
                      "For new users or password reset, send your request to the following ",
-                     tags$a(href = "mailto:ziad.habchi@travelport.com?Subject=uAPI%20Process%20Mining",
+                     tags$a(href = "mailto:ziad.habchi@travelport.com;Stephanos.Kykkotis@travelport.com;Michael.Wilson@travelport.com?Subject=uAPI%20Process%20Mining",
                             target = "_top", "email address")
                    )
                  ),

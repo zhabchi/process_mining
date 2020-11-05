@@ -25,20 +25,20 @@ r <-
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
 AllActivities <-
   c(
-    'OptimizedLowFareSearch',
-    'AirPrice' ,
-    'AirTicketing',
-    'AirRetrieveDocument',
-    'BookingStart',
-    'BookingAirSegment',
-    'BookingTraveler',
-    'BookingPricing',
-    'BookingPnrElement',
-    'BookingDisplay',
-    'BookingTerminal',
-    'BookingEnd',
-    'BookingAirPnrElement',
-    'UniversalRecordRetrieve'
+    "OptimizedLowFareSearch",
+    "AirPrice",
+    "AirTicketing",
+    "AirRetrieveDocument",
+    "BookingStart",
+    "BookingAirSegment",
+    "BookingTraveler",
+    "BookingPricing",
+    "BookingPnrElement",
+    "BookingDisplay",
+    "BookingTerminal",
+    "BookingEnd",
+    "BookingAirPnrElement",
+    "UniversalRecordRetrieve"
   )
 
 
@@ -67,47 +67,47 @@ ui <- dashboardPage(
         text = "Report Parameters",
         icon = icon("file-text-o"),
         startExpanded = TRUE,
-        
-        
+
+
         menuSubItem(
           "Request Data",
           tabName = "global",
           icon = icon("info-circle")
         ),
-        
+
         #Dropdown for Agencies, data loaded from API
         fluidRow(column(12, div(
           selectInput(
             "Agency_ID",
             label = "*Agency:",
             choices = c(unique(as.character(Agencies$name))),
-            width = '100%',
+            width = "100%",
             multiple = FALSE
           )
         ))),
         fluidRow(column(12, div(style = "height:10px"))),
-        
+
         #Filter PCC dropdown
         fluidRow(column(12, div(
           textInput(
             "PCC",
             label = "PCC:",
-            width = '100%',
+            width = "100%",
           )
         ))),
-        
-        
+
+
         fluidRow(column(12, div(style = "height:10px"))),
-        
+
         #Data Selection
         fluidRow(column(12, div(
           dateInput(
             inputId = "Date",
-            label = '*Date:',
+            label = "*Date:",
             width = "100%"
           )
         ))),
-        
+
         #Time Selection
         fluidRow(column(12, div(
           column(
@@ -131,9 +131,9 @@ ui <- dashboardPage(
             )
           )
         ))),
-        
+
         fluidRow(column(12, div(style = "height:10px"))),
-        
+
         #Checkbox to Exclude LFS requests
         fluidRow(column(12, div(
           checkboxInput(
@@ -143,8 +143,8 @@ ui <- dashboardPage(
             width = "100%"
           )
         ))),
-        
-        
+
+
         fluidRow(column(
           12,
           align = "center",
@@ -155,41 +155,41 @@ ui <- dashboardPage(
             height = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
           )
-          
+
         ))
       ),
-      
+
       menuItem(
         "Filters",
         icon = icon("filter"),
         menuSubItem(text = ""),
-        
+
         fluidRow(column(12, div(
           selectInput(
             "ExclTraceIDs",
             label = "Excluded Trace IDs",
             choices = NULL,
-            width = '100%',
+            width = "100%",
             multiple = TRUE
           )
         ))),
-        
+
         fluidRow(column(12, div(
           selectInput(
             "Activities",
             label = "Filter Requests",
             choices = AllActivities,
-            width = '100%',
+            width = "100%",
             multiple = TRUE
           )
         ))),
-        
+
         #Filter PCC dropdown
         fluidRow(column(12, div(
           selectInput(
             "FilterPCC",
             label = "PCC",
-            width = '100%',
+            width = "100%",
             choices = NULL,
             multiple = T
           )
@@ -200,7 +200,7 @@ ui <- dashboardPage(
             "Aux1",
             label = "Filter aux1 (for BookingEnd only)",
             choices = AllAUx1,
-            width = '100%',
+            width = "100%",
             multiple = TRUE
           )
         )))       
@@ -226,13 +226,13 @@ ui <- dashboardPage(
             label = "Download Data",
             width = "40%",
             style = "color: #fff; background-color: #337ab7;border-color: #2e6da4"
-          )#,
+          ),
           # Input: Select a file ----
-          #fileInput("file1", "Choose CSV File",
-          #          multiple = FALSE,
-          #          accept = c("text/csv",
-          #                     "text/comma-separated-values,text/plain",
-          #                     ".csv"))
+          fileInput("file1", "Choose CSV File",
+                    multiple = FALSE,
+                    accept = c("text/csv",
+                               "text/comma-separated-values,text/plain",
+                               ".csv"))
           
         ))
       ),
@@ -246,7 +246,7 @@ ui <- dashboardPage(
       )),
 
       fluidRow(column(12, div(
-    sliderInput(
+      sliderInput(
       "frequency",
       "Frequency",
       min = 0.1,

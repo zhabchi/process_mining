@@ -759,7 +759,7 @@ server <- function(input, output, session) {
               rankdir = "TB"
             )
          
-
+          
           model <- DiagrammeR::add_global_graph_attrs(
             graph,
             attr = "rankdir",
@@ -770,7 +770,7 @@ server <- function(input, output, session) {
           animate_process(
             loghiv,
             model,
-            mode = "relative",
+          #   mode = "relative",
             mapping = token_aes(color = token_scale("red")),
             duration = 20,
             initial_state = "paused"

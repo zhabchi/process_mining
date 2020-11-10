@@ -670,7 +670,7 @@ server <- function(input, output, session) {
           totalReq <- nrow(data)
           hivedataplot <-
             data %>% group_by(request_type_desc) %>%
-            mutate(emptyTrace = ifelse(is.na(traceid), 1 , 0)) %>%
+            mutate(emptyTrace = ifelse(is.na(traceid), 1, ifelse(traceid == "",1,0))) %>%
             summarise(
               count_req =  n() ,
               emptytracecount = sum(emptyTrace) ,

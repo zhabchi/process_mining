@@ -388,7 +388,7 @@ ui <- secure_app(ui,
                  tags_bottom = tags$div(
                    tags$p(
                      "For new users or password reset, send your request to the following ",
-                     tags$a(href = "mailto:ziad.habchi@travelport.com;Stephanos.Kykkotis@travelport.com;Michael.Wilson@travelport.com?Subject=uAPI%20Process%20Mining",
+                     tags$a(href = "mailto:ziad.habchi@travelport.com;Stephanos.Kykkotis@travelport.com;Michael.Wilson@travelport.com?Subject=uAPI%20Workflow%20Analysis%20Tool%20-%20Login%20Details",
                             target = "_top", "email address")
                    )
                  ),

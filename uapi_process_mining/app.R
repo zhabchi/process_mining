@@ -395,10 +395,12 @@ ui <- secure_app(ui,
                  enable_admin = TRUE)
 
 server <- function(input, output, session) {
+  options(shiny.maxRequestSize=300*1024^2)
   #check if user is authorized against the user.sqlite database
   res_auth <-
     secure_server(check_credentials = check_credentials("../database/users.sqlite",
                                                         passphrase = "Travelport"))
+  
   
   hivedata <- reactive({
     x <- input$PLOT #necessary to re-evaluate the fnc on button press
@@ -480,7 +482,7 @@ server <- function(input, output, session) {
         sep = ""
       )
     })
-    print(jsonargs)
+    #print(jsonargs)
     parambody <- list(json = jsonargs)
     ##
     
@@ -515,49 +517,80 @@ server <- function(input, output, session) {
       #call hive API for data
     {
       msgId <-
-        showNotification("Retreiving data from HIVE server." ,
-                         type = "message" ,
-                         duration = NULL)
-      
-      res = POST(url, body =  parambody , encode = "form")
-      
-      ##check response code
-      if (res$status_code == 200)
-      {
-        ##
-        removeNotification(msgId)
-        hivedata = fromJSON(rawToChar(res$content))
-
-        ##check if return is empty content
-        if (rawToChar(res$content) != "[]")
+          showNotification("Retreiving data from HIVE server." ,
+                           type = "message" ,
+                           duration = NULL)
+        
+        res = POST(url, body =  parambody , encode = "form")
+        
+        ##check response code
+        if (res$status_code == 200)
         {
-          hivedata$log_ts <-
-            as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
-          
-          #filtering top x records for performance reasons
-          hivedata <- head(hivedata, 30000)
-          
-          hivedata
+          ##
+          removeNotification(msgId)
+          hivedata = fromJSON(rawToChar(res$content))
+  
+          ##check if return is empty content
+          if (rawToChar(res$content) != "[]")
+          {
+            hivedata$log_ts <-
+              as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+            
+            #filtering top x records for performance reasons
+            hivedata <- head(hivedata, 30000)
+            
+            hivedata
+          }
+          else
+            #case where hive do not return data
+          {
+            removeNotification(msgId)
+            msgId <-
+              showNotification("No data returned for selected Agency." ,  type = "warning")
+            NULL
+          }
         }
         else
-          #case where hive do not return data
+          #case when connection to server fails.
         {
           removeNotification(msgId)
           msgId <-
-            showNotification("No data returned for selected Agency." ,  type = "warning")
+            showNotification("Error connecting to HIVE server." ,  type = "error")
           NULL
         }
-      }
-      else
-        #case when connection to server fails.
-      {
-        removeNotification(msgId)
-        msgId <-
-          showNotification("Error connecting to HIVE server." ,  type = "error")
-        NULL
-      }
+      
     }
   })
+  
+  
+  filedata <- reactive({
+    
+        # when reading semicolon separated files,
+        # having a comma separator causes `read.csv` to error
+        tryCatch(
+          {
+            msgId <- showNotification("Reading data content from file." ,
+                                      type = "message" ,
+                                      duration = NULL)
+            
+            hivedata <- read.csv(input$file1$datapath,
+                                 header = TRUE,
+                                 sep = ",",
+                                 quote = '"')
+            hivedata$log_ts <-
+              as.POSIXct(hivedata$log_ts, format = "%Y-%m-%dT%H:%M:%OS", tz = 'UTC')
+            removeNotification(msgId)
+            
+            #filtering top x records for performance reasons
+            hivedata <- head(hivedata, 30000)
+          },
+          error = function(e) {
+            # return a safeError if a parsing error occurs
+            stop(safeError(e))
+          }
+        )
+  })
+  
   
   #generate even log using eventlog function
   eventloghive <- reactive({
@@ -629,197 +662,213 @@ server <- function(input, output, session) {
     }
     else
     {
-      data <- hivedata()
-      #update the dropdown list of trace ID
-      tempSlcted <- input$ExclTraceIDs
-      traceIds <- unique(data$traceid)
-      traceIds <- traceIds[!is.na(traceIds)] #remove NA
-      updateSelectInput(session,
-                        "ExclTraceIDs",
-                        choices = traceIds,
-                        selected = tempSlcted)
-      
-      #update the dropdown list of PCC
-      tempSlcted <- input$FilterPCC
-      Pccs <- unique(data$pseudo_city_code)
-      updateSelectInput(session,
-                        "FilterPCC",
-                        choices = Pccs,
-                        selected = tempSlcted)
-      
-      #display the usage of traceid
-      output$traceID_aggr <- DT::renderDataTable({
-        #data <- hivedata()
-        if (!is.null(data))
-        {
-          hivedataaggr <-  data %>%
-            group_by(traceid) %>%
-            summarise(CountTrace = n()) %>%
-            arrange(desc(CountTrace))
-          hivedataaggr
-        }
-        else
-          NULL
-      })
-      
-      
-      output$traceId_plot <-  renderPlot({
-        #data <- hivedata()
-        if (!is.null(data))
-        {
-          totalReq <- nrow(data)
-          hivedataplot <-
-            data %>% group_by(request_type_desc) %>%
-            mutate(emptyTrace = ifelse(is.na(traceid), 1, ifelse(traceid == "",1,0))) %>%
-            summarise(
-              count_req =  n() ,
-              emptytracecount = sum(emptyTrace) ,
-              percUsage = (n() - sum(emptyTrace)) / n()
-            )
-          
-          ggplot(hivedataplot, aes(
-            x = reorder(`request_type_desc` , percUsage * 100),
-            y = percUsage * 100
-          )) +
-            geom_bar(stat = 'identity') +
-            xlab('Request') +
-            ylab('Number of Requests') +
-            coord_flip()
-        }
-      })
-      
-      #display raw data in a table
-      output$RawData <- DT::renderDataTable({
-        DT::datatable(data = data,
-                      fillContainer = TRUE,
-                      class = "display nowrap",
-                      options = list(pageLength = 25)
-                      )
-      })
-      
-
-      output$Pr_map <- renderGrViz({
-        loghiv <- eventloghive()
-        
-        if (!is.null(loghiv))
-        {
-          msgId <-
-            showNotification("Rendering Chart ..." ,  type = "default")
-          pp <-
-            loghiv %>%
-            process_map(
-              type = frequency("absolute"),
-              sec_edges = performance(mean, "mins"),
-              rankdir = "TB"
-            )
-          removeNotification(msgId)
-          pp
-        }
-      })
-      
-      output$TimeStamp <- renderText({
-        
-        if (!is.null(data)) {
-          last_ts <-  max(data$log_ts)
-          last_ts <- format(last_ts, format = "%H:%M:%S")
-        }
-      })
-      
-      
-      output$Records <- renderText({
-        #data <- hivedata()
-        if (!is.null(data)) {
-          records <-  format(nrow(data),
-                             big.mark = ",",
-                             scientific = FALSE)
-        }
-      })
-      
-      output$SelectedAgency <- renderText({
-        #data <- hivedata()
-        if (!is.null(data) && nrow(data) > 0) {
-          agencies <- data$agency_name
-          selectedAgency <-  agencies[1]
-          selectedAgency
-        }
-      })
-      
-      
-      output$process <- renderProcessanimater(expr = {
-        loghiv <- eventloghive()
-        
-        if (!is.null(loghiv))
-        {
-          graph <-
-            process_map(
-              loghiv,
-              render = F,
-              type = frequency("absolute"),
-              sec_edges = performance(mean, "mins"),
-              rankdir = "TB"
-            )
-         
-          
-          model <- DiagrammeR::add_global_graph_attrs(
-            graph,
-            attr = "rankdir",
-            value = "TB",
-            attr_type = "graph"
-          )
-          
-          animate_process(
-            loghiv,
-            model,
-          #   mode = "relative",
-            mapping = token_aes(color = token_scale("red")),
-            duration = 20,
-            initial_state = "paused"
-          )
-        }
-        else
-          NULL
-      })
-      
-      output$downloadRawData <- downloadHandler(
-        filename = function() {
-          paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
-        },
-        content = function(file) {
-          write.csv(data , file)
-        }
-      )
-      
-      #output$loopBox <- renderValueBox({
-      #  SL <- number_of_selfloops(eventloghive())
-      #  print(SL)
-      #  valueBox(
-      #    value = SL,
-      #    "Approval",
-      #    icon = icon("thumbs-up", lib = "glyphicon")
-      #  )
-      #})
-      
-      output$downloadProcessMap <- downloadHandler(
-        filename = function() {
-          paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
-        },
-        content = function(file) {
-          graphExport <-
-            eventloghive() %>%
-            process_map(
-              type = frequency("absolute"),
-              sec_edges = performance(mean, "mins"),
-              rankdir = "TB",
-              
-              render = FALSE
-            )
-          export_graph(graphExport,
-                       file_name = file ,
-                       file_type = "SVG")
-        }
-      )
+      fillcharts("A")
     }
   })
+  
+  
+  
+  observeEvent(input$file1, {
+   
+      fillcharts("B")
+    
+  })
+  
+   fillcharts <- function(launchsource) {
+     if(launchsource == "A")
+        data <- hivedata()
+     else
+       data <- filedata()
+     
+    #update the dropdown list of trace ID
+    tempSlcted <- input$ExclTraceIDs
+    traceIds <- unique(data$traceid)
+    traceIds <- traceIds[!is.na(traceIds)] #remove NA
+    updateSelectInput(session,
+                      "ExclTraceIDs",
+                      choices = traceIds,
+                      selected = tempSlcted)
+    
+    #update the dropdown list of PCC
+    tempSlcted <- input$FilterPCC
+    Pccs <- unique(data$pseudo_city_code)
+    updateSelectInput(session,
+                      "FilterPCC",
+                      choices = Pccs,
+                      selected = tempSlcted)
+    
+    #display the usage of traceid
+    output$traceID_aggr <- DT::renderDataTable({
+      #data <- hivedata()
+      if (!is.null(data))
+      {
+        hivedataaggr <-  data %>%
+          group_by(traceid) %>%
+          summarise(CountTrace = n()) %>%
+          arrange(desc(CountTrace))
+        hivedataaggr
+      }
+      else
+        NULL
+    })
+    
+    
+    output$traceId_plot <-  renderPlot({
+      #data <- hivedata()
+      if (!is.null(data))
+      {
+        totalReq <- nrow(data)
+        hivedataplot <-
+          data %>% group_by(request_type_desc) %>%
+          mutate(emptyTrace = ifelse(is.na(traceid), 1, ifelse(traceid == "",1,0))) %>%
+          summarise(
+            count_req =  n() ,
+            emptytracecount = sum(emptyTrace) ,
+            percUsage = (n() - sum(emptyTrace)) / n()
+          )
+        
+        ggplot(hivedataplot, aes(
+          x = reorder(`request_type_desc` , percUsage * 100),
+          y = percUsage * 100
+        )) +
+          geom_bar(stat = 'identity') +
+          xlab('Request') +
+          ylab('Number of Requests') +
+          coord_flip()
+      }
+    })
+    
+    #display raw data in a table
+    output$RawData <- DT::renderDataTable({
+      DT::datatable(data = data,
+                    fillContainer = TRUE,
+                    class = "display nowrap",
+                    options = list(pageLength = 25)
+      )
+    })
+    
+    
+    output$Pr_map <- renderGrViz({
+      loghiv <- eventloghive()
+      
+      if (!is.null(loghiv))
+      {
+        msgId <-
+          showNotification("Rendering Chart ..." ,  type = "default")
+        pp <-
+          loghiv %>%
+          process_map(
+            type = frequency("absolute"),
+            sec_edges = performance(mean, "mins"),
+            rankdir = "TB"
+          )
+        removeNotification(msgId)
+        pp
+      }
+    })
+    
+    output$TimeStamp <- renderText({
+      
+      if (!is.null(data)) {
+        last_ts <-  max(data$log_ts)
+        last_ts <- format(last_ts, format = "%H:%M:%S")
+      }
+    })
+    
+    
+    output$Records <- renderText({
+      #data <- hivedata()
+      if (!is.null(data)) {
+        records <-  format(nrow(data),
+                           big.mark = ",",
+                           scientific = FALSE)
+      }
+    })
+    
+    output$SelectedAgency <- renderText({
+      #data <- hivedata()
+      if (!is.null(data) && nrow(data) > 0) {
+        agencies <- data$agency_name
+        selectedAgency <-  agencies[1]
+        selectedAgency
+      }
+    })
+    
+    
+    output$process <- renderProcessanimater(expr = {
+      loghiv <- eventloghive()
+      
+      if (!is.null(loghiv))
+      {
+        graph <-
+          process_map(
+            loghiv,
+            render = F,
+            type = frequency("absolute"),
+            sec_edges = performance(mean, "mins"),
+            rankdir = "TB"
+          )
+        
+        
+        model <- DiagrammeR::add_global_graph_attrs(
+          graph,
+          attr = "rankdir",
+          value = "TB",
+          attr_type = "graph"
+        )
+        
+        animate_process(
+          loghiv,
+          model,
+          #   mode = "relative",
+          mapping = token_aes(color = token_scale("red")),
+          duration = 20,
+          initial_state = "paused"
+        )
+      }
+      else
+        NULL
+    })
+    
+    output$downloadRawData <- downloadHandler(
+      filename = function() {
+        paste(input$Agency_ID , Sys.Date(), "data.csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(data , file)
+      }
+    )
+    
+    #output$loopBox <- renderValueBox({
+    #  SL <- number_of_selfloops(eventloghive())
+    #  print(SL)
+    #  valueBox(
+    #    value = SL,
+    #    "Approval",
+    #    icon = icon("thumbs-up", lib = "glyphicon")
+    #  )
+    #})
+    
+    output$downloadProcessMap <- downloadHandler(
+      filename = function() {
+        paste(input$Agency_ID , Sys.Date(), ".svg", sep = "")
+      },
+      content = function(file) {
+        graphExport <-
+          eventloghive() %>%
+          process_map(
+            type = frequency("absolute"),
+            sec_edges = performance(mean, "mins"),
+            rankdir = "TB",
+            
+            render = FALSE
+          )
+        export_graph(graphExport,
+                     file_name = file ,
+                     file_type = "SVG")
+      }
+    )
+}
   
 }
 

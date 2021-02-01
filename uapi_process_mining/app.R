@@ -413,8 +413,8 @@ server <- function(input, output, session) {
     })
     
     
-    url <-
-      "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
+    url <-   "http://cvcpluapiss0010.tvlport.net:8083/queryWarehouse"
+    # "http://cvcpluapiss0059.tvlport.net:9000/queryWarehouse"
     
     #constructing the parameters depending on user's input
     param1 <- "{\"agency\":\""

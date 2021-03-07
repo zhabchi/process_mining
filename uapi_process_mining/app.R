@@ -244,6 +244,7 @@ ui <- dashboardPage(
                 and Stephanos Kykkotis from") , tags$br(),"Technology Optimization and 
                 Bookability teams" , tags$br(), "Dubai, UAE."))
       )),
+      menuItem("User Guide", icon = icon("book"), href = "https://teamsites.travelport.com/techdvlp/techoptimization/Shared%20Documents/API%20Consultancy%20Team/UAPI%20Workflow%20Analysis%20Tool/uAPI%20Workflow%20Analysis%20Tool%20-%20User%20Guide.docx?d=wa9b434f66d3645c1a3fd3daaa3d19fc8"),
 
       fluidRow(column(12, div(
       sliderInput(

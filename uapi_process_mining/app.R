@@ -276,7 +276,9 @@ ui <- dashboardPage(
   ),
   
   #Dashboard will have the tabs of the output
-  dashboardBody(tags$head(tags$style(
+  dashboardBody(
+    tags$head(tags$link(rel = "shortcut icon", href = "favicon.ico")),
+    tags$head(tags$style(
     HTML(
       '.main-header .logo {
             font-family: "Georgia", Times,
@@ -791,7 +793,7 @@ server <- function(input, output, session) {
         )) +
           geom_bar(stat = 'identity') +
           xlab('Request') +
-          ylab('Number of Requests') +
+          ylab('Percentage by Requests') +
           coord_flip()
       }
     })

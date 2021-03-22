@@ -26,6 +26,7 @@ Agencies <-  fromJSON(fromJSON(content(r, "text")))
 AllActivities <-
   c(
     "OptimizedLowFareSearch",
+    "AirCreateReservation",
     "AirPrice",
     "AirTicketing",
     "AirRetrieveDocument",

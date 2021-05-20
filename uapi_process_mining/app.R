@@ -1054,7 +1054,7 @@ server <- function(input, output, session) {
      
      
      output$process <- renderProcessanimater(expr = {
-       loghiv <- eventlogfile()()
+       loghiv <- eventlogfile()
        
        if (!is.null(loghiv))
        {

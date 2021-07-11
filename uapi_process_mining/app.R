@@ -21,7 +21,7 @@ library(shinymanager)
 
 
 r <-
-  GET("http://172.31.50.15:8094/api/Agencies/Get?ordered=1") #internal API to retrieve all agencies list in alphabetical order
+  GET("http://techops/ReferenceData/api/agencies/get?ordered=1") #internal API to retrieve all agencies list in alphabetical order
 Agencies <-  fromJSON(fromJSON(content(r, "text")))
 AllActivities <-
   c(
